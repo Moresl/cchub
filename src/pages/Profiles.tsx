@@ -3,8 +3,18 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   RefreshCw, Save, Trash2, Check, Eye, X, ArrowRightLeft,
   Search, Terminal, Code, Monitor, Sparkles, Globe, Wind,
+  Edit3, Plus,
 } from "lucide-react";
 import { getLocale } from "../lib/i18n";
+import {
+  applyPresetToFields,
+  buildStructuredConfig,
+  createDefaultStructuredFields,
+  getConfigPresets,
+  parseStructuredConfig,
+  supportsStructuredConfig,
+  type ClaudeAuthField,
+} from "../lib/configProfiles";
 import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
 
@@ -13,6 +23,8 @@ interface ConfigProfile {
   name: string;
   tool_id: string;
   config_snapshot: string;
+  source_type?: string | null;
+  source_key?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -37,10 +49,10 @@ function formatTime(value: string | null) {
   return value.replace("T", " ").slice(0, 19);
 }
 
-function getEditorLanguage(profile: ConfigProfile): "json" | "toml" {
-  if (profile.tool_id === "codex") {
+function getConfigLanguage(toolId: string, content: string): "json" | "toml" {
+  if (toolId === "codex") {
     try {
-      JSON.parse(profile.config_snapshot);
+      JSON.parse(content);
       return "json";
     } catch {
       return "toml";
@@ -64,11 +76,21 @@ export default function Profiles() {
   const [tools, setTools] = useState<DetectedTool[]>([]);
   const [activeIds, setActiveIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState("");
   const [newTool, setNewTool] = useState("claude");
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [preview, setPreview] = useState<ConfigProfile | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<ConfigProfile | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftTool, setDraftTool] = useState("claude");
+  const [draftContent, setDraftContent] = useState("");
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftPresetId, setDraftPresetId] = useState("custom");
+  const [draftBaseUrl, setDraftBaseUrl] = useState("");
+  const [draftApiKey, setDraftApiKey] = useState("");
+  const [draftModel, setDraftModel] = useState("");
+  const [draftAuthField, setDraftAuthField] = useState<ClaudeAuthField>("ANTHROPIC_AUTH_TOKEN");
   const [filterTool, setFilterTool] = useState("all");
   const [search, setSearch] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
@@ -79,6 +101,7 @@ export default function Profiles() {
   async function load() {
     setLoading(true);
     try {
+      await invoke("sync_config_profiles");
       const [nextProfiles, nextTools, nextActiveIds] = await Promise.all([
         invoke<ConfigProfile[]>("get_config_profiles"),
         invoke<DetectedTool[]>("detect_tools"),
@@ -101,19 +124,127 @@ export default function Profiles() {
     }
   }
 
-  async function handleSave() {
-    if (!newName.trim() || saving) return;
+  function updateStructuredDraft(toolId: string, next: {
+    presetId?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    model?: string;
+    authField?: ClaudeAuthField;
+  }) {
+    const fields = {
+      presetId: next.presetId ?? draftPresetId,
+      baseUrl: next.baseUrl ?? draftBaseUrl,
+      apiKey: next.apiKey ?? draftApiKey,
+      model: next.model ?? draftModel,
+      authField: next.authField ?? draftAuthField,
+    };
+    setDraftPresetId(fields.presetId);
+    setDraftBaseUrl(fields.baseUrl);
+    setDraftApiKey(fields.apiKey);
+    setDraftModel(fields.model);
+    setDraftAuthField(fields.authField);
+    setDraftContent(buildStructuredConfig(toolId, fields));
+  }
+
+  async function openCreateModal(toolId?: string) {
+    const selectedTool = toolId || newTool;
+    if (!installedTools.length) {
+      showToast("error", locale === "zh" ? "没有可用工具配置" : "No available tool configuration");
+      return;
+    }
+    setEditingProfile(null);
+    setDraftName("");
+    setDraftTool(selectedTool);
+    setDraftContent("");
+    setShowCreateModal(true);
+    setSaving(false);
+    setNewTool(selectedTool);
+    if (supportsStructuredConfig(selectedTool)) {
+      const defaults = createDefaultStructuredFields(selectedTool);
+      setDraftPresetId(defaults.presetId);
+      setDraftBaseUrl(defaults.baseUrl);
+      setDraftApiKey(defaults.apiKey);
+      setDraftModel(defaults.model);
+      setDraftAuthField(defaults.authField);
+      setDraftContent(buildStructuredConfig(selectedTool, defaults));
+      setDraftLoading(false);
+      return;
+    }
+    setDraftPresetId("custom");
+    setDraftBaseUrl("");
+    setDraftApiKey("");
+    setDraftModel("");
+    setDraftAuthField("ANTHROPIC_AUTH_TOKEN");
+    setDraftLoading(true);
+    try {
+      const configContent = await invoke<string>("read_tool_config", { toolId: selectedTool });
+      setDraftContent(configContent);
+    } catch (e) {
+      console.error(e);
+      showToast("error", locale === "zh" ? `读取配置失败: ${e}` : `Failed to read configuration: ${e}`);
+    } finally {
+      setDraftLoading(false);
+    }
+  }
+
+  function openEditModal(profile: ConfigProfile) {
+    setEditingProfile(profile);
+    setShowCreateModal(false);
+    setDraftName(profile.name);
+    setDraftTool(profile.tool_id);
+    setDraftContent(profile.config_snapshot);
+    if (supportsStructuredConfig(profile.tool_id)) {
+      const parsed = parseStructuredConfig(profile.tool_id, profile.config_snapshot);
+      setDraftPresetId(parsed.presetId);
+      setDraftBaseUrl(parsed.baseUrl);
+      setDraftApiKey(parsed.apiKey);
+      setDraftModel(parsed.model);
+      setDraftAuthField(parsed.authField);
+    } else {
+      setDraftPresetId("custom");
+      setDraftBaseUrl("");
+      setDraftApiKey("");
+      setDraftModel("");
+      setDraftAuthField("ANTHROPIC_AUTH_TOKEN");
+    }
+    setDraftLoading(false);
+  }
+
+  function closeModal() {
+    setShowCreateModal(false);
+    setEditingProfile(null);
+    setDraftName("");
+    setDraftContent("");
+    setDraftLoading(false);
+    setDraftPresetId("custom");
+    setDraftBaseUrl("");
+    setDraftApiKey("");
+    setDraftModel("");
+    setDraftAuthField("ANTHROPIC_AUTH_TOKEN");
+    setSaving(false);
+  }
+
+  async function handleSaveModal() {
+    if (!draftName.trim() || saving) return;
     setSaving(true);
     try {
-      const configContent = await invoke<string>("read_tool_config", { toolId: newTool });
-      await invoke("save_config_profile", {
-        name: newName.trim(),
-        toolId: newTool,
-        configSnapshot: configContent,
-      });
-      setNewName("");
+      if (editingProfile) {
+        await invoke("update_config_profile", {
+          id: editingProfile.id,
+          name: draftName.trim(),
+          configSnapshot: draftContent,
+        });
+        showToast("success", locale === "zh" ? "配置已更新" : "Configuration updated");
+      } else {
+        await invoke("save_config_profile", {
+          name: draftName.trim(),
+          toolId: draftTool,
+          configSnapshot: draftContent,
+        });
+        showToast("success", locale === "zh" ? "配置已保存" : "Configuration saved");
+      }
+      closeModal();
       await load();
-      showToast("success", locale === "zh" ? "配置已保存" : "Configuration saved");
     } catch (e) {
       console.error(e);
       showToast("error", locale === "zh" ? `保存失败: ${e}` : `Save failed: ${e}`);
@@ -156,6 +287,7 @@ export default function Profiles() {
 
   const activeIdSet = useMemo(() => new Set(activeIds), [activeIds]);
   const installedTools = useMemo(() => tools.filter((tool) => tool.installed), [tools]);
+  const presetOptions = useMemo(() => getConfigPresets(draftTool), [draftTool]);
 
   const toolCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -225,6 +357,15 @@ export default function Profiles() {
               {locale === "zh" ? "保存当前工具的完整配置，后续一键切换。" : "Save the complete current configuration for quick switching."}
             </div>
           </div>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void openCreateModal()}
+            disabled={installedTools.length === 0}
+            style={{ gap: 6 }}
+          >
+            <Plus size={14} />
+            {locale === "zh" ? "新增配置" : "New"}
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -243,28 +384,6 @@ export default function Profiles() {
               </button>
             );
           })}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            className="input"
-            style={{ flex: 1, minWidth: 240, fontSize: 13 }}
-            placeholder={locale === "zh" ? "配置名称，例如：生产环境、备用配置" : "Configuration name, e.g. Production, Backup"}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void handleSave();
-            }}
-          />
-          <button
-            className="btn btn-primary btn-sm"
-            disabled={!newName.trim() || saving || installedTools.length === 0}
-            onClick={() => void handleSave()}
-            style={{ gap: 6 }}
-          >
-            {saving ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <Save size={14} />}
-            {locale === "zh" ? "保存配置" : "Save"}
-          </button>
         </div>
       </div>
 
@@ -361,6 +480,16 @@ export default function Profiles() {
                           <span className="badge badge-muted" style={{ textTransform: "capitalize", fontSize: 10 }}>
                             {profile.tool_id}
                           </span>
+                          {profile.source_type === "compatible" && (
+                            <span className="badge badge-muted" style={{ fontSize: 10 }}>
+                              {locale === "zh" ? "本地已发现" : "Discovered"}
+                            </span>
+                          )}
+                          {profile.source_type === "live" && (
+                            <span className="badge badge-muted" style={{ fontSize: 10 }}>
+                              {locale === "zh" ? "当前本地" : "Live"}
+                            </span>
+                          )}
                           {isActive && (
                             <span className="badge badge-success" style={{ fontSize: 10 }}>
                               {locale === "zh" ? "当前生效" : "Current"}
@@ -403,6 +532,13 @@ export default function Profiles() {
                         <Eye size={14} />
                       </button>
                       <button
+                        className="btn btn-ghost btn-icon-sm"
+                        onClick={() => openEditModal(profile)}
+                        title={locale === "zh" ? "编辑" : "Edit"}
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
                         className="btn btn-danger-ghost btn-icon-sm"
                         onClick={() => void handleDelete(profile)}
                         title={locale === "zh" ? "删除" : "Delete"}
@@ -440,6 +576,10 @@ export default function Profiles() {
                     <ArrowRightLeft size={13} />
                     {locale === "zh" ? "切换到此配置" : "Apply"}
                   </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(preview)} style={{ gap: 5 }}>
+                    <Edit3 size={13} />
+                    {locale === "zh" ? "编辑" : "Edit"}
+                  </button>
                   <button className="btn btn-ghost btn-icon-sm" onClick={() => setPreview(null)}>
                     <X size={16} />
                   </button>
@@ -448,7 +588,7 @@ export default function Profiles() {
 
               <CodeEditor
                 value={preview.config_snapshot}
-                language={getEditorLanguage(preview)}
+                language={getConfigLanguage(preview.tool_id, preview.config_snapshot)}
                 readOnly
                 minHeight={340}
               />
@@ -465,6 +605,206 @@ export default function Profiles() {
                   <Trash2 size={13} />
                   {locale === "zh" ? "删除此配置" : "Delete"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(showCreateModal || editingProfile) && (
+          <div
+            style={{ position: "fixed", inset: 0, background: "var(--bg-overlay)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+            onClick={closeModal}
+          >
+            <div
+              className="section-card"
+              style={{ width: "90vw", maxWidth: 1100, maxHeight: "82vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>
+                    {editingProfile
+                      ? (locale === "zh" ? "编辑配置" : "Edit Configuration")
+                      : (locale === "zh" ? "新增配置" : "New Configuration")}
+                  </h3>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    {editingProfile
+                      ? (locale === "zh" ? "修改名称或配置内容。" : "Update the name or configuration content.")
+                      : (locale === "zh" ? "从当前工具配置创建一个新配置。" : "Create a configuration from the current tool settings.")}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={closeModal}>
+                    <X size={14} />
+                    {locale === "zh" ? "取消" : "Cancel"}
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={() => void handleSaveModal()} disabled={!draftName.trim() || saving} style={{ gap: 6 }}>
+                    {saving ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <Save size={14} />}
+                    {locale === "zh" ? "保存" : "Save"}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ flexShrink: 0, overflowY: "auto", maxHeight: "45%" }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                <select
+                  className="input"
+                  value={draftTool}
+                  disabled={!!editingProfile}
+                  onChange={async (e) => {
+                    const toolId = e.target.value;
+                    setDraftTool(toolId);
+                    setNewTool(toolId);
+                    if (supportsStructuredConfig(toolId)) {
+                      const defaults = createDefaultStructuredFields(toolId);
+                      setDraftPresetId(defaults.presetId);
+                      setDraftBaseUrl(defaults.baseUrl);
+                      setDraftApiKey(defaults.apiKey);
+                      setDraftModel(defaults.model);
+                      setDraftAuthField(defaults.authField);
+                      setDraftContent(buildStructuredConfig(toolId, defaults));
+                      setDraftLoading(false);
+                    } else {
+                      setDraftPresetId("custom");
+                      setDraftBaseUrl("");
+                      setDraftApiKey("");
+                      setDraftModel("");
+                      setDraftAuthField("ANTHROPIC_AUTH_TOKEN");
+                      setDraftContent("");
+                      setDraftLoading(true);
+                      try {
+                        const configContent = await invoke<string>("read_tool_config", { toolId });
+                        setDraftContent(configContent);
+                      } catch (error) {
+                        console.error(error);
+                        showToast("error", locale === "zh" ? `读取配置失败: ${error}` : `Failed to read configuration: ${error}`);
+                      } finally {
+                        setDraftLoading(false);
+                      }
+                    }
+                  }}
+                  style={{ width: 180, fontSize: 13, padding: "8px 12px" }}
+                >
+                  {installedTools.map((tool) => (
+                    <option key={tool.id} value={tool.id}>{tool.name}</option>
+                  ))}
+                </select>
+                <input
+                  className="input"
+                  style={{ flex: 1, minWidth: 260, fontSize: 13 }}
+                  placeholder={locale === "zh" ? "配置名称" : "Configuration name"}
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                />
+              </div>
+
+              {supportsStructuredConfig(draftTool) && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {locale === "zh" ? "内置配置" : "Preset"}
+                    </label>
+                    <select
+                      className="input"
+                      value={draftPresetId}
+                      onChange={(e) => {
+                        const presetId = e.target.value;
+                        const next = applyPresetToFields(draftTool, presetId, {
+                          apiKey: draftApiKey,
+                          authField: draftAuthField,
+                        });
+                        updateStructuredDraft(draftTool, next);
+                      }}
+                      style={{ fontSize: 13, padding: "8px 12px" }}
+                    >
+                      {presetOptions.map((preset) => (
+                        <option key={preset.id} value={preset.id}>{preset.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {locale === "zh" ? "地址" : "Base URL"}
+                    </label>
+                    <input
+                      className="input"
+                      value={draftBaseUrl}
+                      onChange={(e) => updateStructuredDraft(draftTool, { baseUrl: e.target.value })}
+                      placeholder={locale === "zh" ? "填写接口地址" : "Enter base URL"}
+                      style={{ fontSize: 13 }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      API Key
+                    </label>
+                    <input
+                      className="input"
+                      value={draftApiKey}
+                      onChange={(e) => updateStructuredDraft(draftTool, { apiKey: e.target.value })}
+                      placeholder={locale === "zh" ? "填写 Key" : "Enter API key"}
+                      style={{ fontSize: 13 }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {locale === "zh" ? "模型" : "Model"}
+                    </label>
+                    <input
+                      className="input"
+                      value={draftModel}
+                      onChange={(e) => updateStructuredDraft(draftTool, { model: e.target.value })}
+                      placeholder={locale === "zh" ? "填写模型名称" : "Enter model"}
+                      style={{ fontSize: 13 }}
+                    />
+                  </div>
+
+                  {draftTool === "claude" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {locale === "zh" ? "认证字段" : "Auth Field"}
+                      </label>
+                      <select
+                        className="input"
+                        value={draftAuthField}
+                        onChange={(e) => updateStructuredDraft(draftTool, { authField: e.target.value as ClaudeAuthField })}
+                        style={{ fontSize: 13, padding: "8px 12px" }}
+                      >
+                        <option value="ANTHROPIC_AUTH_TOKEN">ANTHROPIC_AUTH_TOKEN</option>
+                        <option value="ANTHROPIC_API_KEY">ANTHROPIC_API_KEY</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+                {getConfigHint(draftTool, locale)}
+              </div>
+
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+                {supportsStructuredConfig(draftTool)
+                  ? (locale === "zh" ? "上面的字段会自动生成下方配置，你也可以继续手动调整。" : "The fields above generate the configuration below. You can still fine-tune it manually.")
+                  : (locale === "zh" ? "可以直接编辑完整配置内容。" : "You can edit the full configuration directly.")}
+              </div>
+
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                {draftLoading ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                    <div className="spinner" />
+                  </div>
+                ) : (
+                  <CodeEditor
+                    value={draftContent}
+                    onChange={setDraftContent}
+                    language={getConfigLanguage(draftTool, draftContent)}
+                    minHeight={200}
+                  />
+                )}
+              </div>
               </div>
             </div>
           </div>
