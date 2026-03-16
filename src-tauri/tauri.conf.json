@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "CCHub",
-        "width": 1440,
-        "height": 800,
-        "minWidth": 1080,
-        "minHeight": 600,
+        "width": 1368,
+        "height": 760,
+        "minWidth": 1026,
+        "minHeight": 570,
         "resizable": true,
         "fullscreen": false
       }

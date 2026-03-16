@@ -49,6 +49,14 @@ function formatTime(value: string | null) {
   return value.replace("T", " ").slice(0, 19);
 }
 
+function prettyJson(content: string): string {
+  try {
+    return JSON.stringify(JSON.parse(content), null, 2);
+  } catch {
+    return content;
+  }
+}
+
 function getConfigLanguage(toolId: string, content: string): "json" | "toml" {
   if (toolId === "codex") {
     try {
@@ -91,7 +99,7 @@ export default function Profiles() {
   const [draftApiKey, setDraftApiKey] = useState("");
   const [draftModel, setDraftModel] = useState("");
   const [draftAuthField, setDraftAuthField] = useState<ClaudeAuthField>("ANTHROPIC_AUTH_TOKEN");
-  const [filterTool, setFilterTool] = useState("all");
+  const [filterTool, setFilterTool] = useState("");
   const [search, setSearch] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
   const locale = getLocale();
@@ -178,7 +186,7 @@ export default function Profiles() {
     setDraftLoading(true);
     try {
       const configContent = await invoke<string>("read_tool_config", { toolId: selectedTool });
-      setDraftContent(configContent);
+      setDraftContent(prettyJson(configContent));
     } catch (e) {
       console.error(e);
       showToast("error", locale === "zh" ? `读取配置失败: ${e}` : `Failed to read configuration: ${e}`);
@@ -192,7 +200,7 @@ export default function Profiles() {
     setShowCreateModal(false);
     setDraftName(profile.name);
     setDraftTool(profile.tool_id);
-    setDraftContent(profile.config_snapshot);
+    setDraftContent(prettyJson(profile.config_snapshot));
     if (supportsStructuredConfig(profile.tool_id)) {
       const parsed = parseStructuredConfig(profile.tool_id, profile.config_snapshot);
       setDraftPresetId(parsed.presetId);
@@ -301,7 +309,7 @@ export default function Profiles() {
     const keyword = search.trim().toLowerCase();
     return [...profiles]
       .filter((profile) => {
-        if (filterTool !== "all" && profile.tool_id !== filterTool) return false;
+        if (filterTool && profile.tool_id !== filterTool) return false;
         if (activeOnly && !activeIdSet.has(profile.id)) return false;
         if (!keyword) return true;
         return (
@@ -412,17 +420,11 @@ export default function Profiles() {
         </div>
 
         <div className="tab-bar" style={{ overflow: "auto", flexShrink: 0 }}>
-          <button
-            className={`tab-item ${filterTool === "all" ? "active" : ""}`}
-            onClick={() => setFilterTool("all")}
-          >
-            {locale === "zh" ? "全部" : "All"} ({profiles.length})
-          </button>
           {tools.map((tool) => (
             <button
               key={tool.id}
               className={`tab-item ${filterTool === tool.id ? "active" : ""}`}
-              onClick={() => setFilterTool(tool.id)}
+              onClick={() => setFilterTool((prev) => prev === tool.id ? "" : tool.id)}
               style={{ opacity: tool.installed || (toolCounts[tool.id] || 0) > 0 ? 1 : 0.55 }}
             >
               {tool.name} ({toolCounts[tool.id] || 0})
@@ -587,7 +589,7 @@ export default function Profiles() {
               </div>
 
               <CodeEditor
-                value={preview.config_snapshot}
+                value={prettyJson(preview.config_snapshot)}
                 language={getConfigLanguage(preview.tool_id, preview.config_snapshot)}
                 readOnly
                 minHeight={340}
@@ -617,7 +619,7 @@ export default function Profiles() {
           >
             <div
               className="section-card"
-              style={{ width: "90vw", maxWidth: 1100, maxHeight: "82vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+              style={{ width: "90vw", maxWidth: 1100, maxHeight: "82vh", display: "flex", flexDirection: "column" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
@@ -645,7 +647,7 @@ export default function Profiles() {
                 </div>
               </div>
 
-              <div style={{ flexShrink: 0, overflowY: "auto", maxHeight: "45%" }}>
+              <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
               <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
                 <select
                   className="input"
@@ -674,7 +676,7 @@ export default function Profiles() {
                       setDraftLoading(true);
                       try {
                         const configContent = await invoke<string>("read_tool_config", { toolId });
-                        setDraftContent(configContent);
+                        setDraftContent(prettyJson(configContent));
                       } catch (error) {
                         console.error(error);
                         showToast("error", locale === "zh" ? `读取配置失败: ${error}` : `Failed to read configuration: ${error}`);
@@ -791,9 +793,9 @@ export default function Profiles() {
                   : (locale === "zh" ? "可以直接编辑完整配置内容。" : "You can edit the full configuration directly.")}
               </div>
 
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ marginTop: 4 }}>
                 {draftLoading ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
                     <div className="spinner" />
                   </div>
                 ) : (
@@ -801,7 +803,7 @@ export default function Profiles() {
                     value={draftContent}
                     onChange={setDraftContent}
                     language={getConfigLanguage(draftTool, draftContent)}
-                    minHeight={200}
+                    minHeight={300}
                   />
                 )}
               </div>

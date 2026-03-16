@@ -7,7 +7,6 @@ import McpClients from "./pages/McpClients";
 import Logs from "./pages/Logs";
 import Skills from "./pages/Skills";
 import Hooks from "./pages/Hooks";
-import Updates from "./pages/Updates";
 import Settings from "./pages/Settings";
 import Security from "./pages/Security";
 import Marketplace from "./pages/Marketplace";
@@ -34,7 +33,6 @@ function App() {
               <Route path="/hooks" element={<Hooks />} />
               <Route path="/workspaces" element={<Workspaces />} />
               <Route path="/profiles" element={<Profiles />} />
-              <Route path="/updates" element={<Updates />} />
               <Route path="/security" element={<Security />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
