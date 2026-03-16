@@ -486,3 +486,159 @@ pub fn read_tool_config(tool_id: String) -> Result<String, String> {
 
     std::fs::read_to_string(&config_path).map_err(|e| e.to_string())
 }
+
+// ── Backup / Export / Import ──
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupData {
+    pub version: String,
+    pub created_at: String,
+    pub tools: HashMap<String, ToolBackup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolBackup {
+    pub config_content: Option<String>,
+    pub config_path: String,
+    pub skills: Vec<SkillFileBackup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillFileBackup {
+    pub name: String,
+    pub content: String,
+}
+
+/// Collect all tool configs and skills into a single backup JSON
+#[tauri::command]
+pub async fn export_all_configs() -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let mut tools_backup: HashMap<String, ToolBackup> = HashMap::new();
+
+    let tool_configs: Vec<(&str, std::path::PathBuf, &str)> = vec![
+        ("claude", home.join(".claude.json"), "skills"),
+        ("claude-settings", home.join(".claude").join("settings.json"), "skills"),
+        ("codex", home.join(".codex").join("config.toml"), "skills"),
+        ("gemini", home.join(".gemini").join("settings.json"), "skills"),
+        ("cursor", home.join(".cursor").join("mcp.json"), "skills"),
+        ("windsurf", home.join(".windsurf").join("mcp.json"), "skills"),
+        ("opencode", home.join(".opencode").join("opencode.json"), "skills"),
+    ];
+
+    for (tool_id, config_path, skills_subdir) in tool_configs {
+        let config_content = if config_path.exists() {
+            std::fs::read_to_string(&config_path).ok()
+        } else {
+            None
+        };
+
+        // Collect skills
+        let mut skills = Vec::new();
+        let skills_dir = config_path.parent().unwrap_or(&home).join(skills_subdir);
+        if skills_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(&skills_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            skills.push(SkillFileBackup { name, content });
+                        }
+                    }
+                }
+            }
+        }
+
+        if config_content.is_some() || !skills.is_empty() {
+            tools_backup.insert(tool_id.to_string(), ToolBackup {
+                config_content,
+                config_path: config_path.to_string_lossy().to_string(),
+                skills,
+            });
+        }
+    }
+
+    let backup = BackupData {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        tools: tools_backup,
+    };
+
+    serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())
+}
+
+/// Save backup JSON to a file chosen by user
+#[tauri::command]
+pub async fn save_backup_to_file() -> Result<String, String> {
+    let backup_json = export_all_configs().await?;
+
+    let file = rfd::AsyncFileDialog::new()
+        .set_title("Save Backup")
+        .set_file_name(&format!("cchub-backup-{}.json", chrono::Local::now().format("%Y%m%d-%H%M%S")))
+        .add_filter("JSON", &["json"])
+        .save_file()
+        .await;
+
+    match file {
+        Some(f) => {
+            let path = f.path();
+            std::fs::write(path, &backup_json).map_err(|e| e.to_string())?;
+            Ok(path.to_string_lossy().to_string())
+        }
+        None => Err("Cancelled".to_string()),
+    }
+}
+
+/// Load backup from a file chosen by user and restore all configs
+#[tauri::command]
+pub async fn import_backup_from_file() -> Result<String, String> {
+    let file = rfd::AsyncFileDialog::new()
+        .set_title("Import Backup")
+        .add_filter("JSON", &["json"])
+        .pick_file()
+        .await;
+
+    let file = file.ok_or("Cancelled")?;
+    let content = std::fs::read_to_string(file.path()).map_err(|e| e.to_string())?;
+    let backup: BackupData = serde_json::from_str(&content).map_err(|e| format!("Invalid backup file: {}", e))?;
+
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let mut restored_count = 0;
+
+    for (tool_id, tool_backup) in &backup.tools {
+        // Determine the actual config path
+        let config_path = match tool_id.as_str() {
+            "claude" => home.join(".claude.json"),
+            "claude-settings" => home.join(".claude").join("settings.json"),
+            "codex" => home.join(".codex").join("config.toml"),
+            "gemini" => home.join(".gemini").join("settings.json"),
+            "cursor" => home.join(".cursor").join("mcp.json"),
+            "windsurf" => home.join(".windsurf").join("mcp.json"),
+            "opencode" => home.join(".opencode").join("opencode.json"),
+            _ => continue,
+        };
+
+        // Restore config file
+        if let Some(ref config_content) = tool_backup.config_content {
+            if let Some(parent) = config_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            crate::utils::atomic_write_string(&config_path, config_content)
+                .map_err(|e| e.to_string())?;
+            restored_count += 1;
+        }
+
+        // Restore skills
+        if !tool_backup.skills.is_empty() {
+            let skills_dir = config_path.parent().unwrap_or(&home).join("skills");
+            let _ = std::fs::create_dir_all(&skills_dir);
+            for skill in &tool_backup.skills {
+                let skill_path = skills_dir.join(&skill.name);
+                let _ = crate::utils::atomic_write_string(&skill_path, &skill.content);
+            }
+            restored_count += tool_backup.skills.len();
+        }
+    }
+
+    Ok(format!("Restored {} items from backup ({})", restored_count, backup.created_at))
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Globe, FolderOpen, Info, Palette, Sun, Moon, Download, RefreshCw, CheckCircle, AlertCircle, Copy, Check } from "lucide-react";
+import { Globe, FolderOpen, Info, Palette, Sun, Moon, Download, RefreshCw, CheckCircle, AlertCircle, Copy, Check, Upload, Archive } from "lucide-react";
 import { t, getLocale, setLocale, type Locale } from "../lib/i18n";
 import { getTheme, setTheme, type Theme } from "../lib/theme";
 
@@ -358,6 +358,44 @@ export default function Settings() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Backup & Restore */}
+        <div className="section-card">
+          <div className="section-card-title">
+            <Archive size={17} style={{ color: "var(--text-secondary)" }} />
+            {loc === "zh" ? "备份与恢复" : "Backup & Restore"}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+            {loc === "zh"
+              ? "导出所有工具配置和技能文件为一个备份文件，换电脑时一键导入恢复。"
+              : "Export all tool configs and skills to a single backup file. Import to restore on any machine."}
+          </p>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button className="btn btn-primary btn-sm" style={{ gap: 6 }}
+              onClick={async () => {
+                try {
+                  const path = await invoke<string>("save_backup_to_file");
+                  alert(loc === "zh" ? `备份已保存到: ${path}` : `Backup saved to: ${path}`);
+                } catch (e) {
+                  if (String(e) !== "Cancelled") alert(String(e));
+                }
+              }}>
+              <Download size={14} />{loc === "zh" ? "导出备份" : "Export Backup"}
+            </button>
+            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }}
+              onClick={async () => {
+                try {
+                  const msg = await invoke<string>("import_backup_from_file");
+                  alert(msg);
+                  loadToolsAndPaths();
+                } catch (e) {
+                  if (String(e) !== "Cancelled") alert(String(e));
+                }
+              }}>
+              <Upload size={14} />{loc === "zh" ? "导入备份" : "Import Backup"}
+            </button>
           </div>
         </div>
 
