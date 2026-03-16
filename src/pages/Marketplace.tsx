@@ -533,7 +533,7 @@ export default function Marketplace() {
       {showCustomSource && (
         <div style={{ position: "fixed", inset: 0, background: "var(--bg-overlay)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
           onClick={() => setShowCustomSource(false)}>
-          <div className="section-card" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
+          <div className="section-card" style={{ width: 520, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Globe size={18} style={{ color: "var(--text-secondary)" }} />

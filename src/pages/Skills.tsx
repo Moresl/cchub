@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   RefreshCw, Zap, Package, FileText, ExternalLink, Search,
-  X, ChevronRight, FolderOpen, Monitor, Terminal,
+  X, FolderOpen, Monitor, Terminal,
   Code, Wind, Folder, File, ChevronDown,
   Edit3, Trash2, Save, Sparkles, Globe,
 } from "lucide-react";
@@ -335,7 +335,6 @@ export default function Skills() {
                           </button>
                         </>
                       )}
-                      <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
                     </div>
                   </div>
                 </div>
