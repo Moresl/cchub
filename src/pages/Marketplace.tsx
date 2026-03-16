@@ -79,24 +79,60 @@ export default function Marketplace() {
 
   useEffect(() => { loadAll(); }, []);
 
+  // Default skill repos to auto-load on startup
+  const DEFAULT_SKILL_REPOS = [
+    { owner: "anthropics", repo: "skills", branch: "main" },
+    { owner: "VoltAgent", repo: "awesome-agent-skills", branch: "main" },
+    { owner: "travisvn", repo: "awesome-claude-skills", branch: "main" },
+  ];
+
   async function loadAll() {
     setLoading(true);
     try {
-      const [e, sk] = await Promise.all([
-        invoke<RegistryEntry[]>("get_marketplace_entries"),
-        invoke<SkillEntry[]>("get_skills_marketplace"),
-      ]);
-      setEntries(e);
-      setSkillEntries(sk);
-      // Load installed MCP servers
+      // Load installed MCP servers for "installed" detection
       try {
         const servers = await invoke<{ id: string; name: string }[]>("scan_mcp_servers");
         setInstalledIds(new Set(servers.flatMap(s => [s.id, s.name])));
+        // Use scanned MCP servers as the MCP marketplace entries
+        const scannedEntries: RegistryEntry[] = servers.map(s => ({
+          id: (s as any).id, name: (s as any).name,
+          description: (s as any).command ? `${(s as any).command} ${(() => { try { return JSON.parse((s as any).args || "[]").join(" "); } catch { return ""; } })()}` : "",
+          category: (s as any).source || "local", install_type: "local", package_name: null,
+          github_url: null, command: (s as any).command || "", args: (() => { try { return JSON.parse((s as any).args || "[]"); } catch { return []; } })(),
+          env_keys: (() => { try { return Object.keys(JSON.parse((s as any).env || "{}")); } catch { return []; } })(), source: "local",
+        }));
+        setEntries(scannedEntries);
       } catch { /* ignore */ }
+
       // Load installed skills
       try {
         const skills = await invoke<{ id: string; name: string }[]>("scan_skills");
         setInstalledSkills(new Set(skills.map(s => s.name.toLowerCase())));
+      } catch { /* ignore */ }
+
+      // Auto-load skills from default repos
+      const allSkills: SkillEntry[] = [];
+      const loadedSources: { url: string; count: number; skillIds: string[] }[] = [];
+      for (const repo of DEFAULT_SKILL_REPOS) {
+        try {
+          const skills = await invoke<SkillEntry[]>("fetch_skills_from_repo", { owner: repo.owner, repo: repo.repo, branch: repo.branch });
+          const newIds = skills.map(s => s.id);
+          allSkills.push(...skills);
+          loadedSources.push({ url: `github:${repo.owner}/${repo.repo}`, count: skills.length, skillIds: newIds });
+        } catch (e) {
+          console.warn(`Failed to load ${repo.owner}/${repo.repo}:`, e);
+        }
+      }
+      setSkillEntries(allSkills);
+      setCustomSources(loadedSources);
+
+      // Also try to load npm MCP entries via search
+      try {
+        const npmResults = await invoke<RegistryEntry[]>("search_marketplace", { query: "mcp server" });
+        setEntries(prev => {
+          const ids = new Set(prev.map(e => e.id));
+          return [...prev, ...npmResults.filter(e => !ids.has(e.id))];
+        });
       } catch { /* ignore */ }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
