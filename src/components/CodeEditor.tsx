@@ -56,7 +56,8 @@ const cmTheme = EditorView.theme({
     background: "rgba(255,255,255,0.05)",
   },
   "&.cm-focused .cm-cursor": {
-    borderLeftColor: "var(--text-primary)",
+    borderLeftColor: "#ffffff",
+    borderLeftWidth: "2px",
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
     background: "rgba(255,255,255,0.1) !important",

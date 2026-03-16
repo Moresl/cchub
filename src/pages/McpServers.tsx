@@ -328,7 +328,7 @@ export default function McpServers() {
                         placeholder="npx, node, python..."
                       />
                     ) : (
-                      <div className="code-block">{selected.command || i.common.na}</div>
+                      <div className="code-block" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{selected.command || i.common.na}</div>
                     )}
                   </div>
 
@@ -350,7 +350,13 @@ export default function McpServers() {
                         minHeight={100}
                       />
                     ) : (
-                      <div className="code-block" style={{ maxHeight: 180, overflowY: "auto" }}>{formatJson(selected.args)}</div>
+                      <CodeEditor
+                        value={formatJson(selected.args)}
+                        language="json"
+                        readOnly
+                        minHeight={80}
+                        maxHeight={180}
+                      />
                     )}
                   </div>
 
@@ -372,9 +378,13 @@ export default function McpServers() {
                         minHeight={100}
                       />
                     ) : (
-                      <div className="code-block" style={{ maxHeight: 180, overflowY: "auto" }}>
-                        {(() => { try { const e = JSON.parse(selected.env); return Object.keys(e).length ? JSON.stringify(e, null, 2) : i.common.na; } catch { return selected.env; } })()}
-                      </div>
+                      <CodeEditor
+                        value={(() => { try { const e = JSON.parse(selected.env); return Object.keys(e).length ? JSON.stringify(e, null, 2) : "{}"; } catch { return selected.env; } })()}
+                        language="json"
+                        readOnly
+                        minHeight={80}
+                        maxHeight={180}
+                      />
                     )}
                   </div>
 
