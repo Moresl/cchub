@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   RefreshCw, Zap, Package, FileText, ExternalLink, Search,
-  X, FolderOpen, Monitor, Terminal,
+  X, FolderOpen, Monitor, Terminal, Check,
   Code, Wind, Folder, File, ChevronDown,
   Edit3, Trash2, Save, Sparkles, Globe,
 } from "lucide-react";
@@ -49,6 +49,7 @@ export default function Skills() {
   const [explorerFile, setExplorerFile] = useState<string | null>(null);
   const [editingSkill, setEditingSkill] = useState(false);
   const [editContent, setEditContent] = useState("");
+  const [syncedSkills, setSyncedSkills] = useState<Record<string, Set<string>>>({});
   const i = t();
   const locale = getLocale();
 
@@ -461,25 +462,36 @@ export default function Skills() {
                 )}
               </div>
 
-              {/* Install to other tools */}
-              {installedTools.length > 1 && selectedSkill.file_path && (
+              {/* Sync to other tools */}
+              {selectedSkill.file_path && (
                 <div style={{ marginBottom: 18 }}>
-                  <span className="field-label">{i.skills.copyTo}</span>
+                  <span className="field-label">{locale === "zh" ? "同步到工具" : "Sync to tools"}</span>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {installedTools.filter((t) => t.id !== activeTool).map((tool) => {
+                    {tools.map((tool) => {
                       const Icon = TOOL_ICONS[tool.id] || Monitor;
+                      const isSynced = syncedSkills[selectedSkill.id]?.has(tool.id) || false;
+                      const isCurrent = tool.id === activeTool;
                       return (
                         <button
                           key={tool.id}
-                          className="btn btn-xs btn-secondary"
-                          style={{ gap: 5 }}
+                          className={`btn btn-xs ${isSynced ? "btn-ghost" : isCurrent ? "btn-ghost" : tool.installed ? "btn-secondary" : "btn-ghost"}`}
+                          style={{ gap: 5, opacity: tool.installed ? 1 : 0.4 }}
+                          disabled={!tool.installed || isCurrent}
+                          title={!tool.installed ? (locale === "zh" ? "未安装" : "Not installed") : isCurrent ? (locale === "zh" ? "当前工具" : "Current tool") : ""}
                           onClick={async () => {
                             try {
                               await invoke("copy_skill_between_tools", { path: selectedSkill.file_path, targetSkillsDir: tool.skills_dir });
+                              setSyncedSkills(prev => {
+                                const next = { ...prev };
+                                if (!next[selectedSkill.id]) next[selectedSkill.id] = new Set();
+                                next[selectedSkill.id] = new Set([...next[selectedSkill.id], tool.id]);
+                                return next;
+                              });
                             } catch (e) { console.error(e); }
                           }}
                         >
-                          <Icon size={12} />{tool.name}
+                          {isSynced ? <Check size={11} style={{ color: "var(--success)" }} /> : <Icon size={12} />}
+                          {tool.name}
                         </button>
                       );
                     })}
@@ -490,25 +502,15 @@ export default function Skills() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span className="field-label" style={{ marginBottom: 0 }}>{locale === "zh" ? "技能内容" : "Content"}</span>
-                  {selectedSkill.file_path && skillContent && !editingSkill && (
+                  {selectedSkill.file_path && skillContent && (
                     <button className="btn btn-secondary btn-xs" onClick={startEditSkill} style={{ gap: 5 }}>
                       <Edit3 size={12} />{locale === "zh" ? "编辑" : "Edit"}
                     </button>
-                  )}
-                  {editingSkill && (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-secondary btn-xs" onClick={() => setEditingSkill(false)}><X size={12} />{locale === "zh" ? "取消" : "Cancel"}</button>
-                      <button className="btn btn-primary btn-xs" onClick={handleSaveSkill}><Save size={12} />{locale === "zh" ? "保存" : "Save"}</button>
-                    </div>
                   )}
                 </div>
                 {loadingContent ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, justifyContent: "center" }}>
                     <div className="spinner" style={{ width: 18, height: 18 }} />
-                  </div>
-                ) : editingSkill ? (
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
-                    {locale === "zh" ? "正在编辑中..." : "Editing..."}
                   </div>
                 ) : skillContent ? (
                   <div className="markdown-preview" style={{ maxHeight: 500, overflowY: "auto", fontSize: 13, lineHeight: 1.8 }}>
