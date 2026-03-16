@@ -267,7 +267,7 @@ export default function Skills() {
             <button
               key={cat.key}
               className={`tab-item ${category === cat.key ? "active" : ""}`}
-              onClick={() => setCategory(cat.key)}
+              onClick={() => { setCategory(cat.key); setSelectedSkill(null); setSkillContent(null); }}
               disabled={cat.count === 0 && cat.key !== "all"}
               style={{ display: "flex", alignItems: "center", gap: 5, opacity: cat.count === 0 && cat.key !== "all" ? 0.4 : 1 }}
             >

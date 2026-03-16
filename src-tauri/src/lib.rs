@@ -109,6 +109,8 @@ pub fn run() {
             extra_commands::read_tool_config,
             extra_commands::pick_folder,
             extra_commands::pick_file,
+            extra_commands::set_proxy,
+            extra_commands::get_proxy,
             extra_commands::export_all_configs,
             extra_commands::save_backup_to_file,
             extra_commands::import_backup_from_file,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Globe, FolderOpen, Info, Palette, Sun, Moon, Download, RefreshCw, CheckCircle, AlertCircle, Copy, Check, Upload, Archive } from "lucide-react";
+import { Globe, FolderOpen, Info, Palette, Sun, Moon, Download, RefreshCw, CheckCircle, AlertCircle, Copy, Check, Upload, Archive, Wifi } from "lucide-react";
 import { t, getLocale, setLocale, type Locale } from "../lib/i18n";
 import { showToast } from "../components/Toast";
 import { getTheme, setTheme, type Theme } from "../lib/theme";
@@ -28,10 +28,19 @@ export default function Settings() {
   const [tools, setTools] = useState<DetectedTool[]>([]);
   const [customPaths, setCustomPaths] = useState<CustomPath[]>([]);
   const [pathSaved, setPathSaved] = useState<string | null>(null);
+  const [proxyUrl, setProxyUrl] = useState("");
+  const [proxySaved, setProxySaved] = useState(false);
   const i = t();
   const loc = getLocale();
 
-  useEffect(() => { loadToolsAndPaths(); }, []);
+  useEffect(() => { loadToolsAndPaths(); loadProxy(); }, []);
+
+  async function loadProxy() {
+    try {
+      const proxy = await invoke<string>("get_proxy");
+      setProxyUrl(proxy);
+    } catch { /* ignore */ }
+  }
 
   async function loadToolsAndPaths() {
     try {
@@ -360,6 +369,53 @@ export default function Settings() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Network Proxy */}
+        <div className="section-card">
+          <div className="section-card-title">
+            <Wifi size={17} style={{ color: "var(--text-secondary)" }} />
+            {loc === "zh" ? "网络代理" : "Network Proxy"}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+            {loc === "zh"
+              ? "设置 HTTP/HTTPS 代理地址，用于访问 GitHub 等外部服务。留空则使用系统默认网络。"
+              : "Set HTTP/HTTPS proxy for accessing GitHub and external services. Leave empty for system default."}
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="input"
+              style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
+              placeholder="http://127.0.0.1:7890"
+              value={proxyUrl}
+              onChange={(e) => setProxyUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (async () => {
+                try {
+                  await invoke("set_proxy", { proxyUrl });
+                  setProxySaved(true);
+                  setTimeout(() => setProxySaved(false), 2000);
+                  showToast("success", loc === "zh" ? "代理已保存" : "Proxy saved");
+                } catch (e) { showToast("error", String(e)); }
+              })()}
+            />
+            <button className="btn btn-primary btn-sm" style={{ gap: 5 }}
+              onClick={async () => {
+                try {
+                  await invoke("set_proxy", { proxyUrl });
+                  setProxySaved(true);
+                  setTimeout(() => setProxySaved(false), 2000);
+                  showToast("success", loc === "zh" ? (proxyUrl.trim() ? "代理已设置" : "代理已清除") : (proxyUrl.trim() ? "Proxy set" : "Proxy cleared"));
+                } catch (e) { showToast("error", String(e)); }
+              }}>
+              {proxySaved ? <Check size={13} style={{ color: "var(--success)" }} /> : <Check size={13} />}
+              {loc === "zh" ? "保存" : "Save"}
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+            {loc === "zh"
+              ? "提示：也可以在 VPN 软件中开启 TUN 模式让所有流量走代理，无需在此设置。"
+              : "Tip: You can also enable TUN mode in your VPN client to proxy all traffic without setting this."}
+          </p>
         </div>
 
         {/* Backup & Restore */}

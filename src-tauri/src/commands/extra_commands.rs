@@ -445,6 +445,37 @@ pub fn delete_config_profile(id: String, db: State<'_, DbState>) -> Result<(), S
     Ok(())
 }
 
+// ── Proxy Settings ──
+
+/// Set HTTP/HTTPS proxy for all network requests
+#[tauri::command]
+pub fn set_proxy(proxy_url: String) -> Result<(), String> {
+    if proxy_url.trim().is_empty() {
+        // Clear proxy
+        std::env::remove_var("HTTP_PROXY");
+        std::env::remove_var("HTTPS_PROXY");
+        std::env::remove_var("http_proxy");
+        std::env::remove_var("https_proxy");
+    } else {
+        let url = proxy_url.trim().to_string();
+        std::env::set_var("HTTP_PROXY", &url);
+        std::env::set_var("HTTPS_PROXY", &url);
+        std::env::set_var("http_proxy", &url);
+        std::env::set_var("https_proxy", &url);
+    }
+    Ok(())
+}
+
+/// Get current proxy setting
+#[tauri::command]
+pub fn get_proxy() -> String {
+    std::env::var("HTTPS_PROXY")
+        .or_else(|_| std::env::var("https_proxy"))
+        .or_else(|_| std::env::var("HTTP_PROXY"))
+        .or_else(|_| std::env::var("http_proxy"))
+        .unwrap_or_default()
+}
+
 /// Open a native folder picker dialog and return the selected path
 #[tauri::command]
 pub async fn pick_folder() -> Result<Option<String>, String> {
