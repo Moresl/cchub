@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Default permissions for CCHub",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "updater:default",
+    "process:default"
+  ]
+}

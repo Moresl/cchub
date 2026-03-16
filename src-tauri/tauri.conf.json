@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/nicolo-ribaudo.github.io/refs/heads/main/tauri-v2-schema.json",
+  "productName": "CCHub",
+  "version": "1.0.0",
+  "identifier": "com.cchub.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CCHub",
+        "width": 1440,
+        "height": 800,
+        "minWidth": 1080,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Moresl/cchub/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIxQ0UzMkQwRTBEQTVDQ0UKUldUT1hOcmcwRExPSVkvOXppNXFLUG1OdURTQ0FIcG84cDdlMktXRUZOWXRrVWR3NkpTYTh3SWkK"
+    }
+  }
+}
