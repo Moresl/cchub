@@ -7,44 +7,17 @@ use tauri::State;
 
 #[tauri::command]
 pub fn get_marketplace_entries() -> Result<Vec<registry::RegistryEntry>, String> {
-    Ok(registry::get_curated_registry())
+    // No local data - MCP entries come from npm search
+    Ok(Vec::new())
 }
 
 #[tauri::command]
 pub async fn search_marketplace(query: String) -> Result<Vec<registry::RegistryEntry>, String> {
-    let mut results = Vec::new();
-
-    // Include matching curated entries
-    let curated = registry::get_curated_registry();
-    let q = query.to_lowercase();
-    for entry in curated {
-        if entry.name.to_lowercase().contains(&q)
-            || entry.description.to_lowercase().contains(&q)
-            || entry.category.to_lowercase().contains(&q)
-        {
-            results.push(entry);
-        }
+    // Search npm registry only (no local data)
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
     }
-
-    // Search npm if query is not empty
-    if !query.trim().is_empty() {
-        match registry::search_npm_registry(&query).await {
-            Ok(npm_results) => {
-                let existing_ids: Vec<String> = results.iter().map(|r| r.id.clone()).collect();
-                for entry in npm_results {
-                    if !existing_ids.contains(&entry.id) {
-                        results.push(entry);
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("npm search failed: {}", e);
-                // Don't fail the whole search if npm is unreachable
-            }
-        }
-    }
-
-    Ok(results)
+    registry::search_npm_registry(&query).await
 }
 
 #[tauri::command]
@@ -93,7 +66,8 @@ pub fn install_from_marketplace(
 
 #[tauri::command]
 pub fn get_skills_marketplace() -> Vec<registry::SkillRegistryEntry> {
-    registry::get_skills_registry()
+    // No local data - skills are loaded from SkillHub API
+    Vec::new()
 }
 
 #[tauri::command]

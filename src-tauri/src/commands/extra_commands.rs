@@ -451,6 +451,36 @@ fn read_tool_snapshot(conn: &rusqlite::Connection, tool_id: &str) -> Result<Stri
             }))
             .map_err(|e| e.to_string())
         }
+        "claude" => {
+            let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+            let claude_json = home.join(".claude.json");
+            let settings_json = home.join(".claude").join("settings.json");
+            let mut combined = serde_json::Map::new();
+            if claude_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&claude_json) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(obj) = val.as_object() {
+                            for (k, v) in obj { combined.insert(k.clone(), v.clone()); }
+                        }
+                    }
+                }
+            }
+            if settings_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&settings_json) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(obj) = val.as_object() {
+                            for (k, v) in obj {
+                                if !combined.contains_key(k) { combined.insert(k.clone(), v.clone()); }
+                            }
+                        }
+                    }
+                }
+            }
+            if combined.is_empty() {
+                return Err("No Claude config found".to_string());
+            }
+            serde_json::to_string_pretty(&serde_json::Value::Object(combined)).map_err(|e| e.to_string())
+        }
         _ => {
             let config_path = resolve_tool_config_path(conn, tool_id)?;
             if !config_path.exists() {
