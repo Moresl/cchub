@@ -36,6 +36,7 @@ toml_edit = "0.25.4"
 rfd = "0.17.2"
 zip = "8.2.0"
 tempfile = "3.27.0"
+urlencoding = "2.1.3"
 
 [profile.dev]
 # Windows/MSVC has hit intermittent linker failures with optimized dev builds

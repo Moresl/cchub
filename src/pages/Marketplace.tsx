@@ -83,11 +83,10 @@ export default function Marketplace() {
   async function loadAll() {
     setLoading(true);
     try {
-      // Load installed MCP servers for "installed" detection
+      // Load installed MCP servers
       try {
         const servers = await invoke<{ id: string; name: string }[]>("scan_mcp_servers");
         setInstalledIds(new Set(servers.flatMap(s => [s.id, s.name])));
-        // Use scanned MCP servers as the MCP marketplace entries
         const scannedEntries: RegistryEntry[] = servers.map(s => ({
           id: (s as any).id, name: (s as any).name,
           description: (s as any).command ? `${(s as any).command} ${(() => { try { return JSON.parse((s as any).args || "[]").join(" "); } catch { return ""; } })()}` : "",
@@ -104,10 +103,16 @@ export default function Marketplace() {
         setInstalledSkills(new Set(skills.map(s => s.name.toLowerCase())));
       } catch { /* ignore */ }
 
-      // Skills will be loaded on-demand when user clicks "Load Skills" on each repo
-      setSkillEntries([]);
+      // Load skills from SkillHub API (default source)
+      try {
+        const result = await invoke<{ skills: SkillEntry[]; total: number }>("get_skillhub_catalog", { page: 1, limit: 50, category: "" });
+        setSkillEntries(result.skills || []);
+      } catch (e) {
+        console.warn("SkillHub API failed, skills will be empty:", e);
+        setSkillEntries([]);
+      }
 
-      // Also try to load npm MCP entries via search
+      // Load npm MCP entries
       try {
         const npmResults = await invoke<RegistryEntry[]>("search_marketplace", { query: "mcp server" });
         setEntries(prev => {
@@ -121,15 +126,18 @@ export default function Marketplace() {
 
   async function handleSearch() {
     if (!search.trim()) { loadAll(); return; }
-    if (tab === "mcp") {
-      setLoading(true);
-      try {
+    setLoading(true);
+    try {
+      if (tab === "mcp") {
         const results = await invoke<RegistryEntry[]>("search_marketplace", { query: search });
         setEntries(results);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    }
-    // Skills search is client-side
+      } else {
+        // Search skills via SkillHub API
+        const results = await invoke<SkillEntry[]>("search_skillhub_skills", { query: search, limit: 30 });
+        setSkillEntries(results);
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }
 
   async function handleInstallMcp(entry: RegistryEntry) {

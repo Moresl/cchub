@@ -106,6 +106,27 @@ pub async fn fetch_skills_from_repo(owner: String, repo: String, branch: String)
     registry::fetch_skills_from_github_repo(&owner, &repo, &branch).await
 }
 
+// ── SkillHub API ──
+
+#[tauri::command]
+pub async fn get_skillhub_catalog(page: u32, limit: u32, category: String) -> Result<serde_json::Value, String> {
+    let (entries, total) = registry::fetch_skillhub_catalog(page, limit, &category).await?;
+    Ok(serde_json::json!({
+        "skills": entries,
+        "total": total,
+    }))
+}
+
+#[tauri::command]
+pub async fn search_skillhub_skills(query: String, limit: u32) -> Result<Vec<registry::SkillRegistryEntry>, String> {
+    registry::search_skillhub(query.trim(), limit).await
+}
+
+#[tauri::command]
+pub async fn get_skillhub_skill_content(slug: String) -> Result<String, String> {
+    registry::fetch_skillhub_skill_content(&slug).await
+}
+
 #[tauri::command]
 pub fn install_skill_from_marketplace(
     name: String,

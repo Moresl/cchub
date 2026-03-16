@@ -65,6 +65,131 @@ pub fn get_skills_registry() -> Vec<SkillRegistryEntry> {
     serde_json::from_str(json).unwrap_or_default()
 }
 
+// ── SkillHub API Integration ──
+
+/// Fetch skills from the SkillHub catalog API (https://www.skillhub.club)
+pub async fn fetch_skillhub_catalog(page: u32, limit: u32, category: &str) -> Result<(Vec<SkillRegistryEntry>, usize), String> {
+    let client = build_http_client()?;
+
+    let mut url = format!("https://www.skillhub.club/api/v1/desktop/catalog?page={}&limit={}", page, limit);
+    if !category.is_empty() && category != "all" {
+        url.push_str(&format!("&category={}", category));
+    }
+
+    let resp = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("SkillHub API error: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("SkillHub API returned {}", resp.status()));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
+
+    let total = body.get("total").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let skills_arr = body.get("skills").and_then(|v| v.as_array());
+
+    let mut entries = Vec::new();
+    if let Some(skills) = skills_arr {
+        for skill in skills {
+            let id = skill.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let name = skill.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let description = skill.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let description_zh = skill.get("description_zh").and_then(|v| v.as_str()).map(String::from);
+            let category = skill.get("category").and_then(|v| v.as_str()).unwrap_or("development").to_string();
+            let author = skill.get("author").and_then(|v| v.as_str()).map(String::from);
+            let repo_url = skill.get("repo_url").and_then(|v| v.as_str()).map(String::from);
+            let slug = skill.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let stars = skill.get("github_stars").and_then(|v| v.as_i64()).unwrap_or(0);
+
+            entries.push(SkillRegistryEntry {
+                id: if id.is_empty() { slug.clone() } else { id },
+                name,
+                description,
+                description_zh,
+                category,
+                author,
+                github_url: repo_url,
+                cover_url: None,
+                tags: if stars > 0 { vec![format!("{}stars", stars)] } else { vec![] },
+                content: slug, // Store slug for later fetching full content
+            });
+        }
+    }
+
+    Ok((entries, total))
+}
+
+/// Search skills via SkillHub API
+pub async fn search_skillhub(query: &str, limit: u32) -> Result<Vec<SkillRegistryEntry>, String> {
+    let client = build_http_client()?;
+
+    let url = format!("https://www.skillhub.club/api/v1/desktop/search?q={}&limit={}", urlencoding::encode(query), limit);
+    let resp = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("SkillHub search error: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("SkillHub search returned {}", resp.status()));
+    }
+
+    let skills: Vec<serde_json::Value> = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
+
+    let mut entries = Vec::new();
+    for skill in skills {
+        let name = skill.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let slug = skill.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let description = skill.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let category = skill.get("category").and_then(|v| v.as_str()).unwrap_or("development").to_string();
+        let author = skill.get("author").and_then(|v| v.as_str()).map(String::from);
+        let repo_url = skill.get("repo_url").and_then(|v| v.as_str()).map(String::from);
+
+        entries.push(SkillRegistryEntry {
+            id: slug.clone(),
+            name,
+            description,
+            description_zh: None,
+            category,
+            author,
+            github_url: repo_url,
+            cover_url: None,
+            tags: vec![],
+            content: slug,
+        });
+    }
+
+    Ok(entries)
+}
+
+/// Get full skill content from SkillHub API
+pub async fn fetch_skillhub_skill_content(slug: &str) -> Result<String, String> {
+    let client = build_http_client()?;
+    let url = format!("https://www.skillhub.club/api/v1/desktop/skills/{}", slug);
+    let resp = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("SkillHub detail error: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("SkillHub detail returned {}", resp.status()));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
+    let skill_md = body.get("skill")
+        .and_then(|s| s.get("skill_md_raw"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if skill_md.is_empty() {
+        return Err("No skill content available".to_string());
+    }
+
+    Ok(skill_md)
+}
+
 pub async fn fetch_custom_source(url: &str) -> Result<Vec<SkillRegistryEntry>, String> {
     let client = build_http_client()?;
     let resp = client.get(url)
