@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, FileText, Save, RotateCcw, Plus, X, Check } from "lucide-react";
 import { t } from "../lib/i18n";
+import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
 
 interface ClaudeMdFile {
@@ -72,7 +73,7 @@ export default function ClaudeMd() {
       setOriginalContent(content);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e) { console.error(e); alert("Failed to save"); }
+    } catch (e) { console.error(e); showToast("error", "Failed to save"); }
     finally { setSaving(false); }
   }
 
@@ -100,7 +101,7 @@ export default function ClaudeMd() {
       };
       selectFile(newFile);
     } catch (e: any) {
-      alert(e?.toString() || "Failed to create file");
+      showToast("error", e?.toString() || "Failed to create file");
     }
   }
 

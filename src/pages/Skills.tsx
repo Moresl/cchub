@@ -129,7 +129,7 @@ export default function Skills() {
 
   async function handleDeleteSkill(skill: Skill) {
     if (!skill.file_path) return;
-    if (!confirm(locale === "zh" ? `确定删除技能 "${skill.name}"？` : `Delete skill "${skill.name}"?`)) return;
+    if (!window.confirm(locale === "zh" ? `确定删除技能 "${skill.name}"？` : `Delete skill "${skill.name}"?`)) return;
     try {
       await invoke("uninstall_skill_file", { path: skill.file_path });
       if (selectedSkill?.id === skill.id) {
@@ -151,7 +151,7 @@ export default function Skills() {
   }
 
   async function handleDeletePlugin(plugin: Plugin) {
-    if (!confirm(locale === "zh" ? `确定删除插件 "${plugin.name}"？此操作不可恢复。` : `Delete plugin "${plugin.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(locale === "zh" ? `确定删除插件 "${plugin.name}"？此操作不可恢复。` : `Delete plugin "${plugin.name}"? This cannot be undone.`)) return;
     try {
       await invoke("delete_plugin_dir", { pluginName: plugin.id });
       await invoke("uninstall_plugin", { pluginId: plugin.id });

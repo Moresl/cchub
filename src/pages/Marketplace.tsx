@@ -7,6 +7,7 @@ import {
   Database, Brain, Wrench, Monitor, FolderOpen, Cloud, Clock,
 } from "lucide-react";
 import { t } from "../lib/i18n";
+import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -79,13 +80,6 @@ export default function Marketplace() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Default skill repos to auto-load on startup
-  const DEFAULT_SKILL_REPOS = [
-    { owner: "anthropics", repo: "skills", branch: "main" },
-    { owner: "VoltAgent", repo: "awesome-agent-skills", branch: "main" },
-    { owner: "travisvn", repo: "awesome-claude-skills", branch: "main" },
-  ];
-
   async function loadAll() {
     setLoading(true);
     try {
@@ -110,21 +104,8 @@ export default function Marketplace() {
         setInstalledSkills(new Set(skills.map(s => s.name.toLowerCase())));
       } catch { /* ignore */ }
 
-      // Auto-load skills from default repos
-      const allSkills: SkillEntry[] = [];
-      const loadedSources: { url: string; count: number; skillIds: string[] }[] = [];
-      for (const repo of DEFAULT_SKILL_REPOS) {
-        try {
-          const skills = await invoke<SkillEntry[]>("fetch_skills_from_repo", { owner: repo.owner, repo: repo.repo, branch: repo.branch });
-          const newIds = skills.map(s => s.id);
-          allSkills.push(...skills);
-          loadedSources.push({ url: `github:${repo.owner}/${repo.repo}`, count: skills.length, skillIds: newIds });
-        } catch (e) {
-          console.warn(`Failed to load ${repo.owner}/${repo.repo}:`, e);
-        }
-      }
-      setSkillEntries(allSkills);
-      setCustomSources(loadedSources);
+      // Skills will be loaded on-demand when user clicks "Load Skills" on each repo
+      setSkillEntries([]);
 
       // Also try to load npm MCP entries via search
       try {
@@ -172,7 +153,7 @@ export default function Marketplace() {
       setInstalledIds(prev => new Set([...prev, entry.name, entry.id]));
     } catch (e) {
       console.error(e);
-      alert(locale === "zh" ? "安装失败" : "Installation failed");
+      showToast("error", locale === "zh" ? "安装失败" : "Installation failed");
     }
     finally { setInstalling(null); }
   }
@@ -186,13 +167,13 @@ export default function Marketplace() {
       setInstalledSkills(prev => new Set([...prev, skill.name.toLowerCase()]));
     } catch (e) {
       console.error(e);
-      alert(locale === "zh" ? "安装失败" : "Installation failed");
+      showToast("error", locale === "zh" ? "安装失败" : "Installation failed");
     }
     finally { setInstalling(null); }
   }
 
   async function handleUninstallSkill(skill: SkillEntry) {
-    if (!confirm(locale === "zh" ? `确定卸载技能 "${skill.name}"？` : `Uninstall skill "${skill.name}"?`)) return;
+    if (!window.confirm(locale === "zh" ? `确定卸载技能 "${skill.name}"？` : `Uninstall skill "${skill.name}"?`)) return;
     try {
       // Find the installed file path by scanning skills
       const skills = await invoke<{ name: string; file_path: string | null }[]>("scan_skills");
@@ -237,7 +218,7 @@ export default function Marketplace() {
       setCustomUrl("");
     } catch (e) {
       console.error(e);
-      alert(locale === "zh" ? "加载失败，请检查 URL 格式" : "Failed to load. Check URL format.");
+      showToast("error", locale === "zh" ? "加载失败，请检查 URL 格式" : "Failed to load. Check URL format.");
     }
     finally { setLoadingCustom(false); }
   }
@@ -650,7 +631,7 @@ export default function Marketplace() {
                           setCustomSources(prev => [...prev, { url: `github:${repo.name}`, count: newIds.length, skillIds: newIds }]);
                         } catch (e) {
                           console.error(e);
-                          alert(locale === "zh" ? `加载失败: ${e}` : `Load failed: ${e}`);
+                          showToast("error", locale === "zh" ? `加载失败: ${e}` : `Load failed: ${e}`);
                         }
                         finally { setLoadingRepo(null); }
                       }}>

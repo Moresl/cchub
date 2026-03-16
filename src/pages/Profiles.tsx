@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Plus, Save, Trash2, Check, Eye, X, ArrowRightLeft } from "lucide-react";
 import { getLocale } from "../lib/i18n";
+import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
 
 interface ConfigProfile {
@@ -57,7 +58,7 @@ export default function Profiles() {
       await load();
     } catch (e) {
       console.error(e);
-      alert(locale === "zh" ? `保存失败: ${e}` : `Save failed: ${e}`);
+      showToast("error", locale === "zh" ? `保存失败: ${e}` : `Save failed: ${e}`);
     }
     finally { setSaving(false); }
   }
@@ -66,20 +67,20 @@ export default function Profiles() {
     const msg = locale === "zh"
       ? `确定切换到配置「${profile.name}」？\n\n这将覆盖 ${profile.tool_id} 的当前配置文件。建议先保存当前配置再切换。`
       : `Switch to profile "${profile.name}"?\n\nThis will overwrite ${profile.tool_id}'s current config file. Consider saving current config first.`;
-    if (!confirm(msg)) return;
+    if (!window.confirm(msg)) return;
     setApplying(profile.id);
     try {
       await invoke("apply_config_profile", { id: profile.id });
       setApplied(profile.id);
       setTimeout(() => setApplied(null), 3000);
       await load();
-    } catch (e) { console.error(e); alert(String(e)); }
+    } catch (e) { console.error(e); showToast("error", String(e)); }
     finally { setApplying(null); }
   }
 
   async function handleDelete(profile: ConfigProfile) {
     const msg = locale === "zh" ? `确定删除配置「${profile.name}」？` : `Delete profile "${profile.name}"?`;
-    if (!confirm(msg)) return;
+    if (!window.confirm(msg)) return;
     try {
       await invoke("delete_config_profile", { id: profile.id });
       if (preview?.id === profile.id) setPreview(null);

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Trash2, Edit3, X, Save, Plug, Copy, Check, Activity, FileText, Share2, Wand2 } from "lucide-react";
 import { t, tReplace, getLocale } from "../lib/i18n";
+import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
 import type { DetectedTool } from "../types/skills";
 
@@ -73,7 +74,7 @@ export default function McpServers() {
   }
 
   async function handleDelete(server: McpServer) {
-    if (!confirm(tReplace(i.mcp.confirmRemove, { name: server.name }))) return;
+    if (!window.confirm(tReplace(i.mcp.confirmRemove, { name: server.name }))) return;
     try {
       await invoke("uninstall_mcp_server", { name: server.name });
       setServers((prev) => prev.filter((s) => s.id !== server.id));
@@ -105,7 +106,7 @@ export default function McpServers() {
       await loadServers();
     } catch (e) {
       console.error(e);
-      alert(getLocale() === "zh" ? "JSON 格式错误，请检查参数和环境变量" : "Invalid JSON format");
+      showToast("error", getLocale() === "zh" ? "JSON 格式错误，请检查参数和环境变量" : "Invalid JSON format");
     }
   }
 

@@ -59,7 +59,7 @@ export default function Workspaces() {
 
   async function handleDelete(ws: Workspace) {
     if (ws.is_active) return;
-    if (!confirm(locale === "zh" ? `确定删除工作区 "${ws.name}"？` : `Delete workspace "${ws.name}"?`)) return;
+    if (!window.confirm(locale === "zh" ? `确定删除工作区 "${ws.name}"？` : `Delete workspace "${ws.name}"?`)) return;
     try {
       await invoke("delete_workspace", { id: ws.id });
       await load();

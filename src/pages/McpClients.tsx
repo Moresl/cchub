@@ -56,7 +56,7 @@ export default function McpClients() {
   }
 
   async function handleDelete(client: McpClient) {
-    if (!confirm(locale === "zh" ? `确定删除客户端 "${client.name}"？` : `Delete client "${client.name}"?`)) return;
+    if (!window.confirm(locale === "zh" ? `确定删除客户端 "${client.name}"？` : `Delete client "${client.name}"?`)) return;
     try {
       await invoke("delete_mcp_client", { id: client.id });
       if (selected?.id === client.id) setSelected(null);

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Globe, FolderOpen, Info, Palette, Sun, Moon, Download, RefreshCw, CheckCircle, AlertCircle, Copy, Check, Upload, Archive } from "lucide-react";
 import { t, getLocale, setLocale, type Locale } from "../lib/i18n";
+import { showToast } from "../components/Toast";
 import { getTheme, setTheme, type Theme } from "../lib/theme";
 
 interface AppUpdateState {
@@ -377,9 +378,9 @@ export default function Settings() {
               onClick={async () => {
                 try {
                   const path = await invoke<string>("save_backup_to_file");
-                  alert(loc === "zh" ? `备份已保存到: ${path}` : `Backup saved to: ${path}`);
+                  showToast("success", loc === "zh" ? `备份已保存到: ${path}` : `Backup saved to: ${path}`);
                 } catch (e) {
-                  if (String(e) !== "Cancelled") alert(String(e));
+                  if (String(e) !== "Cancelled") showToast("error", String(e));
                 }
               }}>
               <Download size={14} />{loc === "zh" ? "导出备份" : "Export Backup"}
@@ -388,10 +389,10 @@ export default function Settings() {
               onClick={async () => {
                 try {
                   const msg = await invoke<string>("import_backup_from_file");
-                  alert(msg);
+                  showToast("success", msg);
                   loadToolsAndPaths();
                 } catch (e) {
-                  if (String(e) !== "Cancelled") alert(String(e));
+                  if (String(e) !== "Cancelled") showToast("error", String(e));
                 }
               }}>
               <Upload size={14} />{loc === "zh" ? "导入备份" : "Import Backup"}

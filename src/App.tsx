@@ -14,10 +14,12 @@ import Security from "./pages/Security";
 import Marketplace from "./pages/Marketplace";
 import Workspaces from "./pages/Workspaces";
 import Profiles from "./pages/Profiles";
+import { ToastContainer } from "./components/Toast";
 
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer />
       <div className="app-layout">
         <Sidebar />
         <div className="main-area">
