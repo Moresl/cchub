@@ -270,6 +270,13 @@ export default function Marketplace() {
           <p className="page-subtitle">{i.marketplace.subtitle}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className={`btn btn-ghost btn-icon-sm ${showCovers ? "" : "btn-muted"}`}
+            onClick={() => setShowCovers(!showCovers)}
+            title={locale === "zh" ? "显示封面" : "Show covers"}
+          >
+            <Image size={15} style={{ color: showCovers ? "var(--text-primary)" : "var(--text-muted)" }} />
+          </button>
           {tab === "skills" && (
             <>
               <button
@@ -278,13 +285,6 @@ export default function Marketplace() {
                 title={locale === "zh" ? "显示翻译" : "Show translation"}
               >
                 <Languages size={15} style={{ color: showTranslation ? "var(--text-primary)" : "var(--text-muted)" }} />
-              </button>
-              <button
-                className={`btn btn-ghost btn-icon-sm ${showCovers ? "" : "btn-muted"}`}
-                onClick={() => setShowCovers(!showCovers)}
-                title={locale === "zh" ? "显示封面" : "Show covers"}
-              >
-                <Image size={15} style={{ color: showCovers ? "var(--text-primary)" : "var(--text-muted)" }} />
               </button>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomSource(true)} style={{ gap: 6 }}>
                 <Plus size={14} />{locale === "zh" ? "自定义源" : "Custom Source"}
@@ -562,6 +562,39 @@ export default function Marketplace() {
                   </div>
                   <span className="badge badge-success" style={{ fontSize: 10 }}>{locale === "zh" ? "默认" : "Default"}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Recommended skill repos */}
+            <div style={{ marginBottom: 20 }}>
+              <span className="field-label">{locale === "zh" ? "推荐技能仓库" : "Recommended Skill Repos"}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { name: "VoltAgent/awesome-agent-skills", desc: locale === "zh" ? "500+ 官方团队与社区技能（Anthropic/Google/Vercel 等）" : "500+ skills from official teams & community" },
+                  { name: "travisvn/awesome-claude-skills", desc: locale === "zh" ? "精选技能合集（含 Superpowers 核心技能库）" : "Curated skills with Superpowers core library" },
+                  { name: "ComposioHQ/awesome-claude-skills", desc: locale === "zh" ? "实用技能列表（支持 1000+ 应用集成）" : "Practical skills with 1000+ app integrations" },
+                  { name: "sickn33/antigravity-awesome-skills", desc: locale === "zh" ? "1200+ 高性能 AI Agent 技能" : "1200+ high-performance agent skills" },
+                  { name: "rohitg00/awesome-claude-code-toolkit", desc: locale === "zh" ? "135 个 Agent + 35 个技能 + 42 个命令" : "135 agents + 35 skills + 42 commands" },
+                  { name: "alirezarezvani/claude-skills", desc: locale === "zh" ? "180+ 生产级技能（工程/营销/产品）" : "180+ production skills (engineering/marketing/product)" },
+                  { name: "levnikolaevich/claude-code-skills", desc: locale === "zh" ? "全流程交付技能（研发/测试/评审）" : "Full delivery workflow skills" },
+                  { name: "anthropics/skills", desc: locale === "zh" ? "Anthropic 官方技能" : "Official Anthropic skills" },
+                  { name: "JimLiu/baoyu-skills", desc: locale === "zh" ? "宝玉技能合集" : "Baoyu skills collection" },
+                  { name: "cexll/myclaude", desc: locale === "zh" ? "个人精选技能" : "Personal curated skills" },
+                  { name: "hesreallyhim/awesome-claude-code", desc: locale === "zh" ? "技能 + 钩子 + 插件 + Agent 编排" : "Skills + hooks + plugins + agent orchestrators" },
+                  { name: "affaan-m/everything-claude-code", desc: locale === "zh" ? "Agent 性能优化系统（1282 测试）" : "Agent harness optimization (1282 tests)" },
+                ].map((repo) => (
+                  <div key={repo.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "var(--bg-input)" }}>
+                    <ExternalLink size={12} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{repo.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{repo.desc}</div>
+                    </div>
+                    <button className="btn btn-xs btn-secondary" style={{ flexShrink: 0, gap: 4 }}
+                      onClick={() => shellOpen(`https://github.com/${repo.name}`)}>
+                      <ExternalLink size={10} />{locale === "zh" ? "查看" : "View"}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
