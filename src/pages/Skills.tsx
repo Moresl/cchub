@@ -7,7 +7,7 @@ import {
   Edit3, Trash2, Save, Sparkles, Globe,
 } from "lucide-react";
 import { t, tReplace, getLocale } from "../lib/i18n";
-import type { DetectedTool, FolderNode, CategoryCounts, SkillCategory } from "../types/skills";
+import type { DetectedTool, FolderNode, SkillCategory } from "../types/skills";
 import CodeEditor from "../components/CodeEditor";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,7 +35,6 @@ export default function Skills() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [tools, setTools] = useState<DetectedTool[]>([]);
-  const [categories, setCategories] = useState<CategoryCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTool, setActiveTool] = useState<string>("claude");
   const [category, setCategory] = useState<SkillCategory>("all");
@@ -58,16 +57,14 @@ export default function Skills() {
   async function load() {
     setLoading(true);
     try {
-      const [sk, pl, dt, cats] = await Promise.all([
+      const [sk, pl, dt] = await Promise.all([
         invoke<Skill[]>("scan_skills"),
         invoke<Plugin[]>("get_plugins"),
         invoke<DetectedTool[]>("detect_tools"),
-        invoke<CategoryCounts>("get_skill_categories"),
       ]);
       setSkills(sk);
       setPlugins(pl);
       setTools(dt);
-      setCategories(cats);
       // Auto-select first installed tool
       const firstInstalled = dt.find((t) => t.installed);
       if (firstInstalled) setActiveTool(firstInstalled.id);
@@ -188,11 +185,11 @@ export default function Skills() {
   }
 
   const catTabs: { key: SkillCategory; label: string; count: number }[] = [
-    { key: "all", label: i.skills.categoryAll, count: categories?.total ?? (skills.length + plugins.length) },
-    { key: "skill", label: i.skills.categorySkills, count: categories?.skills ?? 0 },
-    { key: "prompt", label: i.skills.categoryPrompts, count: categories?.prompts ?? 0 },
-    { key: "command", label: i.skills.categoryCommands, count: categories?.commands ?? 0 },
-    { key: "plugin", label: i.skills.categoryPlugins, count: categories?.plugins ?? plugins.length },
+    { key: "all", label: i.skills.categoryAll, count: skills.length + plugins.length },
+    { key: "skill", label: i.skills.categorySkills, count: skills.filter(s => !s.plugin_id).length },
+    { key: "prompt", label: i.skills.categoryPrompts, count: skills.filter(s => (s.name + (s.description || "")).toLowerCase().includes("prompt")).length },
+    { key: "command", label: i.skills.categoryCommands, count: skills.filter(s => !!s.trigger_command).length },
+    { key: "plugin", label: i.skills.categoryPlugins, count: plugins.length },
   ];
 
   return (
@@ -265,13 +262,14 @@ export default function Skills() {
             ><X size={14} /></button>
           )}
         </div>
-        <div className="tab-bar">
+        <div className="tab-bar" style={{ flexShrink: 0, overflow: "auto" }}>
           {catTabs.map((cat) => (
             <button
               key={cat.key}
               className={`tab-item ${category === cat.key ? "active" : ""}`}
               onClick={() => setCategory(cat.key)}
-              style={{ display: "flex", alignItems: "center", gap: 5 }}
+              disabled={cat.count === 0 && cat.key !== "all"}
+              style={{ display: "flex", alignItems: "center", gap: 5, opacity: cat.count === 0 && cat.key !== "all" ? 0.4 : 1 }}
             >
               {cat.label}
               <span style={{ fontSize: 11, opacity: 0.7 }}>({cat.count})</span>
