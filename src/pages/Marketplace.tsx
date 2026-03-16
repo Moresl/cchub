@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import {
-  Store, Search, Download, CheckCircle, X, ExternalLink, Key,
+  Store, Search, Download, CheckCircle, X, ExternalLink, Key, Check,
   Plug, Zap, Plus, Globe, Image, Languages, Tag, Edit3, Trash2, Save,
   Database, Brain, Wrench, Monitor, FolderOpen, Cloud, Clock,
 } from "lucide-react";
@@ -70,6 +70,7 @@ export default function Marketplace() {
   const [customUrl, setCustomUrl] = useState("");
   const [loadingCustom, setLoadingCustom] = useState(false);
   const [customSources, setCustomSources] = useState<{ url: string; count: number; skillIds: string[] }[]>([]);
+  const [loadingRepo, setLoadingRepo] = useState<string | null>(null);
   const [previewSkill, setPreviewSkill] = useState<SkillEntry | null>(null);
   const [editingPreview, setEditingPreview] = useState(false);
   const [editContent, setEditContent] = useState("");
@@ -582,19 +583,48 @@ export default function Marketplace() {
                   { name: "cexll/myclaude", desc: locale === "zh" ? "个人精选技能" : "Personal curated skills" },
                   { name: "hesreallyhim/awesome-claude-code", desc: locale === "zh" ? "技能 + 钩子 + 插件 + Agent 编排" : "Skills + hooks + plugins + agent orchestrators" },
                   { name: "affaan-m/everything-claude-code", desc: locale === "zh" ? "Agent 性能优化系统（1282 测试）" : "Agent harness optimization (1282 tests)" },
-                ].map((repo) => (
+                ].map((repo) => {
+                  const [owner, repoName] = repo.name.split("/");
+                  const isLoaded = customSources.some(s => s.url === `github:${repo.name}`);
+                  const isLoading = loadingRepo === repo.name;
+                  return (
                   <div key={repo.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: "var(--bg-input)" }}>
                     <ExternalLink size={12} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{repo.name}</div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{repo.desc}</div>
                     </div>
-                    <button className="btn btn-xs btn-secondary" style={{ flexShrink: 0, gap: 4 }}
+                    <button className="btn btn-xs btn-ghost" style={{ flexShrink: 0, gap: 4 }}
                       onClick={() => shellOpen(`https://github.com/${repo.name}`)}>
-                      <ExternalLink size={10} />{locale === "zh" ? "查看" : "View"}
+                      <ExternalLink size={10} />
+                    </button>
+                    <button className={`btn btn-xs ${isLoaded ? "btn-ghost" : "btn-primary"}`} style={{ flexShrink: 0, gap: 4 }}
+                      disabled={isLoading || isLoaded}
+                      onClick={async () => {
+                        setLoadingRepo(repo.name);
+                        try {
+                          const skills = await invoke<SkillEntry[]>("fetch_skills_from_repo", { owner, repo: repoName, branch: "main" });
+                          const newIds: string[] = [];
+                          setSkillEntries(prev => {
+                            const existingIds = new Set(prev.map(s => s.id));
+                            const newEntries = skills.filter(s => !existingIds.has(s.id));
+                            newEntries.forEach(s => newIds.push(s.id));
+                            return [...prev, ...newEntries];
+                          });
+                          setCustomSources(prev => [...prev, { url: `github:${repo.name}`, count: newIds.length, skillIds: newIds }]);
+                        } catch (e) {
+                          console.error(e);
+                          alert(locale === "zh" ? `加载失败: ${e}` : `Load failed: ${e}`);
+                        }
+                        finally { setLoadingRepo(null); }
+                      }}>
+                      {isLoading ? <><div className="spinner" style={{ width: 10, height: 10 }} />{locale === "zh" ? "加载中" : "Loading"}</>
+                        : isLoaded ? <><Check size={10} style={{ color: "var(--success)" }} />{locale === "zh" ? "已加载" : "Loaded"}</>
+                        : <><Download size={10} />{locale === "zh" ? "加载技能" : "Load Skills"}</>}
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

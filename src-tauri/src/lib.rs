@@ -84,6 +84,7 @@ pub fn run() {
             marketplace_commands::get_skills_marketplace,
             marketplace_commands::fetch_custom_skill_source,
             marketplace_commands::install_skill_from_marketplace,
+            marketplace_commands::fetch_skills_from_repo,
             // Extra commands (clients, logs, workspaces)
             extra_commands::get_mcp_clients,
             extra_commands::create_mcp_client,

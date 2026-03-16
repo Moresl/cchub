@@ -102,6 +102,11 @@ pub async fn fetch_custom_skill_source(url: String) -> Result<Vec<registry::Skil
 }
 
 #[tauri::command]
+pub async fn fetch_skills_from_repo(owner: String, repo: String, branch: String) -> Result<Vec<registry::SkillRegistryEntry>, String> {
+    registry::fetch_skills_from_github_repo(&owner, &repo, &branch).await
+}
+
+#[tauri::command]
 pub fn install_skill_from_marketplace(
     name: String,
     content: String,
