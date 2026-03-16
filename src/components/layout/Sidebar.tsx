@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Plug, Zap, Webhook, RefreshCw, Settings, Shield, Store, Monitor, Activity, Layers } from "lucide-react";
+import { LayoutDashboard, Plug, Zap, Webhook, RefreshCw, Settings, Shield, Store, Monitor, Activity, Layers, ArrowRightLeft } from "lucide-react";
 import { t } from "../../lib/i18n";
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { path: "/marketplace", key: "marketplace" as const, icon: Store },
   { path: "/hooks", key: "hooks" as const, icon: Webhook },
   { path: "/workspaces", key: "workspaces" as const, icon: Layers },
+  { path: "/profiles", key: "profiles" as const, icon: ArrowRightLeft },
   { path: "/updates", key: "updates" as const, icon: RefreshCw },
   { path: "/security", key: "security" as const, icon: Shield },
   { path: "/settings", key: "settings" as const, icon: Settings },

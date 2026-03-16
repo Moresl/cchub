@@ -41,7 +41,7 @@ export function ToastContainer() {
   };
 
   return (
-    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, maxWidth: 400 }}>
+    <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, maxWidth: 480, minWidth: 300 }}>
       {toasts.map(toast => {
         const Icon = icons[toast.type];
         const color = colors[toast.type];

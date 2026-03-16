@@ -120,7 +120,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="animate-in" style={{ maxWidth: 800 }}>
+    <div className="animate-in">
       <div className="page-header">
         <div>
           <h2 className="page-title">{i.settings.title}</h2>

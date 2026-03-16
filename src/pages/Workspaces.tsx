@@ -87,7 +87,7 @@ export default function Workspaces() {
   const activeWs = workspaces.find(w => w.is_active);
 
   return (
-    <div className="animate-in" style={{ maxWidth: 720 }}>
+    <div className="animate-in">
       <div className="page-header">
         <div>
           <h2 className="page-title">{locale === "zh" ? "工作区" : "Workspaces"}</h2>
