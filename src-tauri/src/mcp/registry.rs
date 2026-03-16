@@ -53,109 +53,41 @@ pub async fn fetch_custom_source(url: &str) -> Result<Vec<SkillRegistryEntry>, S
     Ok(entries)
 }
 
-/// Fetch skills from a GitHub repository by scanning for .md files in common skill directories
+/// Fetch skills from a GitHub repository by downloading ZIP and scanning for SKILL.md files
 pub async fn fetch_skills_from_github_repo(owner: &str, repo: &str, branch: &str) -> Result<Vec<SkillRegistryEntry>, String> {
     let client = reqwest::Client::new();
     let mut all_skills = Vec::new();
 
-    // Try common skill directory patterns
-    let search_paths = vec!["", "skills", "src/skills", "claude-skills", "custom-skills"];
+    // Try branches in order: specified branch, main, master
+    let mut branches = Vec::new();
+    if !branch.is_empty() && branch != "HEAD" {
+        branches.push(branch.to_string());
+    }
+    if !branches.iter().any(|b| b == "main") { branches.push("main".to_string()); }
+    if !branches.iter().any(|b| b == "master") { branches.push("master".to_string()); }
 
-    for path in search_paths {
-        let api_url = if path.is_empty() {
-            format!("https://api.github.com/repos/{}/{}/git/trees/{}?recursive=1", owner, repo, branch)
-        } else {
-            format!("https://api.github.com/repos/{}/{}/contents/{}?ref={}", owner, repo, path, branch)
-        };
+    let temp_dir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
-        let resp = client.get(&api_url)
-            .header("User-Agent", "CCHub")
-            .header("Accept", "application/vnd.github.v3+json")
-            .send()
-            .await;
-
-        let resp = match resp {
-            Ok(r) if r.status().is_success() => r,
-            _ => continue,
-        };
-
-        let body: serde_json::Value = match resp.json().await {
-            Ok(v) => v,
+    let mut download_ok = false;
+    let mut resolved_branch = branch.to_string();
+    for b in &branches {
+        let url = format!("https://github.com/{}/{}/archive/refs/heads/{}.zip", owner, repo, b);
+        match download_and_extract_zip(&client, &url, temp_dir.path()).await {
+            Ok(_) => { download_ok = true; resolved_branch = b.clone(); break; }
             Err(_) => continue,
-        };
-
-        // Handle recursive tree response (root path)
-        if path.is_empty() {
-            if let Some(tree) = body.get("tree").and_then(|t| t.as_array()) {
-                for item in tree {
-                    let file_path = item.get("path").and_then(|p| p.as_str()).unwrap_or("");
-                    if !file_path.ends_with(".md") || file_path.starts_with('.') || file_path.eq_ignore_ascii_case("README.md") || file_path.eq_ignore_ascii_case("CHANGELOG.md") || file_path.eq_ignore_ascii_case("CONTRIBUTING.md") || file_path.eq_ignore_ascii_case("LICENSE.md") {
-                        continue;
-                    }
-                    // Only consider .md files that look like skills (in skills-like dirs or root)
-                    let is_skill_dir = file_path.contains("skill") || file_path.contains("prompt") || file_path.contains("agent")
-                        || !file_path.contains('/'); // root-level .md files
-                    if !is_skill_dir { continue; }
-
-                    let raw_url = format!("https://raw.githubusercontent.com/{}/{}/{}/{}", owner, repo, branch, file_path);
-                    if let Ok(content) = fetch_raw_content(&client, &raw_url).await {
-                        let name = std::path::Path::new(file_path)
-                            .file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string();
-
-                        let (parsed_name, desc) = parse_skill_frontmatter(&content, &name);
-
-                        all_skills.push(SkillRegistryEntry {
-                            id: format!("{}/{}/{}", owner, repo, name),
-                            name: parsed_name,
-                            description: desc.clone(),
-                            description_zh: None,
-                            category: guess_category(&desc),
-                            author: Some(format!("{}/{}", owner, repo)),
-                            github_url: Some(format!("https://github.com/{}/{}", owner, repo)),
-                            cover_url: None,
-                            tags: vec![],
-                            content,
-                        });
-                    }
-                }
-                if !all_skills.is_empty() { break; }
-            }
-            continue;
         }
+    }
 
-        // Handle contents API response (specific directory)
-        if let Some(files) = body.as_array() {
-            for file in files {
-                let name = file.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                if !name.ends_with(".md") || name.eq_ignore_ascii_case("README.md") {
-                    continue;
-                }
-                let download_url = file.get("download_url").and_then(|u| u.as_str()).unwrap_or("");
-                if download_url.is_empty() { continue; }
+    if !download_ok {
+        return Err(format!("Failed to download {}/{} (tried branches: {:?})", owner, repo, branches));
+    }
 
-                if let Ok(content) = fetch_raw_content(&client, download_url).await {
-                    let stem = name.trim_end_matches(".md").to_string();
-                    let (parsed_name, desc) = parse_skill_frontmatter(&content, &stem);
+    // Recursively scan for SKILL.md files
+    scan_skills_recursive(temp_dir.path(), temp_dir.path(), owner, repo, &resolved_branch, &mut all_skills);
 
-                    all_skills.push(SkillRegistryEntry {
-                        id: format!("{}/{}/{}", owner, repo, stem),
-                        name: parsed_name,
-                        description: desc.clone(),
-                        description_zh: None,
-                        category: guess_category(&desc),
-                        author: Some(format!("{}/{}", owner, repo)),
-                        github_url: Some(format!("https://github.com/{}/{}", owner, repo)),
-                        cover_url: None,
-                        tags: vec![],
-                        content,
-                    });
-                }
-            }
-            if !all_skills.is_empty() { break; }
-        }
+    // If no SKILL.md found, fall back to scanning .md files
+    if all_skills.is_empty() {
+        scan_md_files_recursive(temp_dir.path(), temp_dir.path(), owner, repo, &resolved_branch, &mut all_skills);
     }
 
     if all_skills.is_empty() {
@@ -165,13 +97,174 @@ pub async fn fetch_skills_from_github_repo(owner: &str, repo: &str, branch: &str
     Ok(all_skills)
 }
 
-async fn fetch_raw_content(client: &reqwest::Client, url: &str) -> Result<String, String> {
-    let resp = client.get(url)
+async fn download_and_extract_zip(client: &reqwest::Client, url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let response = client.get(url)
         .header("User-Agent", "CCHub")
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    resp.text().await.map_err(|e| e.to_string())
+        .send().await.map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| format!("ZIP error: {}", e))?;
+
+    // Find root directory name in ZIP (e.g., "repo-main/")
+    let root_name = if !archive.is_empty() {
+        let first = archive.by_index(0).map_err(|e| e.to_string())?;
+        let name = first.name().to_string();
+        name.split('/').next().unwrap_or("").to_string()
+    } else {
+        String::new()
+    };
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = file.name().to_string();
+
+        // Strip root directory prefix
+        let relative = if !root_name.is_empty() && name.starts_with(&root_name) {
+            name[root_name.len()..].trim_start_matches('/')
+        } else {
+            &name
+        };
+
+        if relative.is_empty() { continue; }
+
+        let out_path = dest.join(relative);
+
+        // Security: skip paths with ..
+        if relative.contains("..") { continue; }
+
+        if file.is_dir() {
+            let _ = std::fs::create_dir_all(&out_path);
+        } else {
+            if let Some(parent) = out_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let mut outfile = std::fs::File::create(&out_path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Recursively scan for directories containing SKILL.md
+fn scan_skills_recursive(
+    current: &std::path::Path,
+    base: &std::path::Path,
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    skills: &mut Vec<SkillRegistryEntry>,
+) {
+    let skill_md = current.join("SKILL.md");
+    if skill_md.exists() {
+        if let Ok(content) = std::fs::read_to_string(&skill_md) {
+            let dir_name = current.strip_prefix(base)
+                .unwrap_or(current)
+                .to_string_lossy()
+                .to_string();
+
+            let (name, desc) = parse_skill_frontmatter(&content, &dir_name.replace('\\', "/").split('/').last().unwrap_or(&dir_name));
+
+            // Read all .md files in this skill directory as the content
+            let mut full_content = content.clone();
+            for entry in std::fs::read_dir(current).into_iter().flatten().flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) && path.file_name().map(|n| n != "SKILL.md").unwrap_or(false) {
+                    if let Ok(extra) = std::fs::read_to_string(&path) {
+                        full_content.push_str("\n\n---\n\n");
+                        full_content.push_str(&extra);
+                    }
+                }
+            }
+
+            skills.push(SkillRegistryEntry {
+                id: format!("{}/{}:{}", owner, repo, dir_name),
+                name,
+                description: desc.clone(),
+                description_zh: None,
+                category: guess_category(&desc),
+                author: Some(format!("{}/{}", owner, repo)),
+                github_url: Some(format!("https://github.com/{}/{}/tree/{}/{}", owner, repo, branch, dir_name)),
+                cover_url: None,
+                tags: vec![],
+                content: full_content,
+            });
+        }
+        return; // Don't recurse into skill subdirectories
+    }
+
+    // Recurse into subdirectories
+    let entries = match std::fs::read_dir(current) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            // Skip hidden dirs and common non-skill dirs
+            if name.starts_with('.') || name == "node_modules" || name == "__pycache__" || name == "target" {
+                continue;
+            }
+            scan_skills_recursive(&path, base, owner, repo, branch, skills);
+        }
+    }
+}
+
+/// Fallback: scan for individual .md files when no SKILL.md found
+fn scan_md_files_recursive(
+    current: &std::path::Path,
+    base: &std::path::Path,
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    skills: &mut Vec<SkillRegistryEntry>,
+) {
+    let entries = match std::fs::read_dir(current) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if !name.starts_with('.') && name != "node_modules" && name != "__pycache__" {
+                scan_md_files_recursive(&path, base, owner, repo, branch, skills);
+            }
+        } else if path.is_file() {
+            let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if !fname.ends_with(".md") { continue; }
+            // Skip common non-skill files
+            let lower = fname.to_lowercase();
+            if lower == "readme.md" || lower == "changelog.md" || lower == "contributing.md"
+                || lower == "license.md" || lower == "code_of_conduct.md" { continue; }
+
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let stem = fname.trim_end_matches(".md");
+                let rel_path = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+                let (name, desc) = parse_skill_frontmatter(&content, stem);
+
+                skills.push(SkillRegistryEntry {
+                    id: format!("{}/{}:{}", owner, repo, stem),
+                    name,
+                    description: desc.clone(),
+                    description_zh: None,
+                    category: guess_category(&desc),
+                    author: Some(format!("{}/{}", owner, repo)),
+                    github_url: Some(format!("https://github.com/{}/{}/tree/{}/{}", owner, repo, branch, rel_path)),
+                    cover_url: None,
+                    tags: vec![],
+                    content,
+                });
+            }
+        }
+    }
 }
 
 /// Parse skill name and description from markdown frontmatter or first heading

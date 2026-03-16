@@ -34,6 +34,8 @@ thiserror = "2"
 toml = "1.0.6"
 toml_edit = "0.25.4"
 rfd = "0.17.2"
+zip = "8.2.0"
+tempfile = "3.27.0"
 
 [profile.dev]
 opt-level = 1
