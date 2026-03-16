@@ -38,7 +38,11 @@ zip = "8.2.0"
 tempfile = "3.27.0"
 
 [profile.dev]
-opt-level = 1
+# Windows/MSVC has hit intermittent linker failures with optimized dev builds
+# (`anon.*.llvm.*` unresolved symbols). Keep dev codegen conservative.
+opt-level = 0
+codegen-units = 1
+incremental = false
 
 [profile.release]
 codegen-units = 1

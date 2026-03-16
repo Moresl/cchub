@@ -588,18 +588,10 @@ export default function Marketplace() {
               <span className="field-label">{locale === "zh" ? "推荐技能仓库" : "Recommended Skill Repos"}</span>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[
-                  { name: "VoltAgent/awesome-agent-skills", desc: locale === "zh" ? "500+ 官方团队与社区技能（Anthropic/Google/Vercel 等）" : "500+ skills from official teams & community" },
-                  { name: "travisvn/awesome-claude-skills", desc: locale === "zh" ? "精选技能合集（含 Superpowers 核心技能库）" : "Curated skills with Superpowers core library" },
-                  { name: "ComposioHQ/awesome-claude-skills", desc: locale === "zh" ? "实用技能列表（支持 1000+ 应用集成）" : "Practical skills with 1000+ app integrations" },
-                  { name: "sickn33/antigravity-awesome-skills", desc: locale === "zh" ? "1200+ 高性能 AI Agent 技能" : "1200+ high-performance agent skills" },
-                  { name: "rohitg00/awesome-claude-code-toolkit", desc: locale === "zh" ? "135 个 Agent + 35 个技能 + 42 个命令" : "135 agents + 35 skills + 42 commands" },
-                  { name: "alirezarezvani/claude-skills", desc: locale === "zh" ? "180+ 生产级技能（工程/营销/产品）" : "180+ production skills (engineering/marketing/product)" },
-                  { name: "levnikolaevich/claude-code-skills", desc: locale === "zh" ? "全流程交付技能（研发/测试/评审）" : "Full delivery workflow skills" },
-                  { name: "anthropics/skills", desc: locale === "zh" ? "Anthropic 官方技能" : "Official Anthropic skills" },
-                  { name: "JimLiu/baoyu-skills", desc: locale === "zh" ? "宝玉技能合集" : "Baoyu skills collection" },
-                  { name: "cexll/myclaude", desc: locale === "zh" ? "个人精选技能" : "Personal curated skills" },
-                  { name: "hesreallyhim/awesome-claude-code", desc: locale === "zh" ? "技能 + 钩子 + 插件 + Agent 编排" : "Skills + hooks + plugins + agent orchestrators" },
-                  { name: "affaan-m/everything-claude-code", desc: locale === "zh" ? "Agent 性能优化系统（1282 测试）" : "Agent harness optimization (1282 tests)" },
+                  { name: "levnikolaevich/claude-code-skills", branch: "master", desc: locale === "zh" ? "125 个技能 — 全流程交付（研发/测试/评审）" : "125 skills — full delivery workflow" },
+                  { name: "rohitg00/awesome-claude-code-toolkit", branch: "main", desc: locale === "zh" ? "35 个技能 + 135 个 Agent + 42 个命令" : "35 skills + 135 agents + 42 commands" },
+                  { name: "JimLiu/baoyu-skills", branch: "main", desc: locale === "zh" ? "18 个技能 — 宝玉技能合集" : "18 skills — Baoyu skills collection" },
+                  { name: "cexll/myclaude", branch: "master", desc: locale === "zh" ? "11 个技能 — 浏览器/代码/开发等" : "11 skills — browser/code/dev" },
                 ].map((repo) => {
                   const [owner, repoName] = repo.name.split("/");
                   const isLoaded = customSources.some(s => s.url === `github:${repo.name}`);
@@ -620,7 +612,7 @@ export default function Marketplace() {
                       onClick={async () => {
                         setLoadingRepo(repo.name);
                         try {
-                          const skills = await invoke<SkillEntry[]>("fetch_skills_from_repo", { owner, repo: repoName, branch: "main" });
+                          const skills = await invoke<SkillEntry[]>("fetch_skills_from_repo", { owner, repo: repoName, branch: repo.branch });
                           const newIds: string[] = [];
                           setSkillEntries(prev => {
                             const existingIds = new Set(prev.map(s => s.id));
