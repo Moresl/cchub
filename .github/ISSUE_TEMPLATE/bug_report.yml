@@ -1,0 +1,78 @@
+name: Bug 报告 / Bug Report
+description: 报告一个问题 / Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你提交 Bug 报告！请尽量详细填写以下信息。
+        Thanks for reporting a bug! Please fill in the details below.
+
+  - type: input
+    id: version
+    attributes:
+      label: CCHub 版本 / Version
+      placeholder: "例如 / e.g. 1.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 / Operating System
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: 安装方式 / Installation Type
+      options:
+        - 安装版 (Setup EXE)
+        - MSI 安装版
+        - 便携版 (Portable)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述 / Bug Description
+      placeholder: 清楚描述你遇到的问题 / Describe the bug clearly
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to Reproduce
+      placeholder: |
+        1. 打开 CCHub
+        2. 点击 ...
+        3. 出现错误
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 / Expected Behavior
+      placeholder: 你期望发生什么 / What did you expect to happen?
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图 / Screenshots
+      placeholder: 如有截图请粘贴 / Paste screenshots if available
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志信息 / Logs
+      description: 如有错误日志请粘贴 / Paste error logs if available
+      render: shell
