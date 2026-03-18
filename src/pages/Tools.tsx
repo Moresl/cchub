@@ -98,54 +98,40 @@ export default function Tools() {
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {tab === "claude" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {/* Permission Level */}
-            <ToolCard title={zh ? "权限模式" : "Permission Mode"} desc={zh ? "控制操作确认级别" : "Action confirmation level"}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: perm.color, boxShadow: `0 0 6px ${perm.color}50` }} />
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{zh ? perm.label_zh : perm.label_en}</span>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{zh ? PERM_DESC_ZH[permLevel] : PERM_DESC_EN[permLevel]}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Permission Slider */}
+            <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 20 }}>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{zh ? "权限模式" : "Permission Mode"}</h4>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: perm.color, boxShadow: `0 0 5px ${perm.color}50` }} />
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{zh ? perm.label_zh : perm.label_en}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>— {zh ? PERM_DESC_ZH[permLevel] : PERM_DESC_EN[permLevel]}</span>
+                </div>
+                <div style={{ position: "relative", height: 5, borderRadius: 3, background: "var(--bg-badge)" }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(permLevel / 3) * 100}%`, borderRadius: 3, background: `linear-gradient(90deg, #ef4444, ${perm.color})`, transition: "width 0.2s" }} />
+                  <input type="range" min={0} max={3} step={1} value={permLevel}
+                    onChange={e => { const v = Number(e.target.value); setPermLevel(v); setClaudeSetting("set_claude_permissions_level", { level: v }, () => {}); }}
+                    style={{ position: "absolute", top: -8, left: 0, width: "100%", height: 22, opacity: 0, cursor: "pointer" }} />
+                  <div style={{ position: "absolute", top: -5, left: `calc(${(permLevel / 3) * 100}% - 7px)`, width: 14, height: 14, borderRadius: "50%", background: perm.color, border: "2px solid var(--bg-app)", boxShadow: `0 0 5px ${perm.color}60`, transition: "left 0.2s", pointerEvents: "none" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                  {PERM_LEVELS.map((pl, i) => (
+                    <span key={i} style={{ fontSize: 10, color: permLevel === i ? pl.color : "var(--text-muted)", fontWeight: permLevel === i ? 700 : 400, cursor: "pointer" }}
+                      onClick={() => { setPermLevel(i); setClaudeSetting("set_claude_permissions_level", { level: i }, () => {}); }}>
+                      {zh ? pl.label_zh : pl.label_en}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div style={{ position: "relative", height: 6, borderRadius: 3, background: "var(--bg-badge)" }}>
-                <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(permLevel / 3) * 100}%`, borderRadius: 3, background: `linear-gradient(90deg, #ef4444, ${perm.color})`, transition: "width 0.2s" }} />
-                <input type="range" min={0} max={3} step={1} value={permLevel}
-                  onChange={e => {
-                    const v = Number(e.target.value);
-                    setPermLevel(v);
-                    setClaudeSetting("set_claude_permissions_level", { level: v }, () => {});
-                  }}
-                  style={{ position: "absolute", top: -8, left: 0, width: "100%", height: 24, opacity: 0, cursor: "pointer" }} />
-                <div style={{ position: "absolute", top: -5, left: `calc(${(permLevel / 3) * 100}% - 8px)`, width: 16, height: 16, borderRadius: "50%", background: perm.color, border: "2px solid var(--bg-app)", boxShadow: `0 0 6px ${perm.color}60`, transition: "left 0.2s", pointerEvents: "none" }} />
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-                {PERM_LEVELS.map((pl, i) => (
-                  <span key={i} style={{ fontSize: 10, color: permLevel === i ? pl.color : "var(--text-muted)", fontWeight: permLevel === i ? 700 : 400, cursor: "pointer" }}
-                    onClick={() => { setPermLevel(i); setClaudeSetting("set_claude_permissions_level", { level: i }, () => {}); }}>
-                    {zh ? pl.label_zh : pl.label_en}
-                  </span>
-                ))}
-              </div>
-            </ToolCard>
+            </div>
 
-            {/* Auto Update */}
-            <ToolCard title={zh ? "自动更新" : "Auto Update"} desc={zh ? "Claude Code 更新频道" : "Update channel"}>
-              <div style={{ display: "flex", gap: 6 }}>
-                {[
-                  { value: "latest", label: zh ? "最新" : "Latest", color: "#22c55e" },
-                  { value: "stable", label: zh ? "稳定" : "Stable", color: "#3b82f6" },
-                  { value: "disabled", label: zh ? "关闭" : "Off", color: "var(--text-muted)" },
-                ].map(opt => (
-                  <button key={opt.value}
-                    className={`btn btn-xs ${autoUpdate === opt.value ? "btn-primary" : "btn-secondary"}`}
-                    onClick={() => { setAutoUpdate(opt.value); setClaudeSetting("set_claude_auto_update", { channel: opt.value }, () => {}); }}>
-                    {opt.label}
-                  </button>
-                ))}
+            {/* Skip Dangerous Confirm */}
+            <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700 }}>{zh ? "跳过危险确认" : "Skip Danger Prompt"}</h4>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{zh ? "全权限模式免确认" : "No confirmation for bypass mode"}</p>
               </div>
-            </ToolCard>
-
-            {/* Skip Dangerous Mode Prompt */}
-            <ToolCard title={zh ? "跳过危险确认" : "Skip Danger Prompt"} desc={zh ? "进入全权限模式时不再弹确认" : "No confirmation for bypass mode"}>
               <ToggleSwitch
                 value={permLevel === 3}
                 onChange={v => {
@@ -156,47 +142,60 @@ export default function Tools() {
                 labelOn={zh ? "已跳过" : "Skipped"}
                 labelOff={zh ? "需确认" : "Required"}
               />
-            </ToolCard>
+            </div>
 
-            {/* Model Info */}
-            <ToolCard title={zh ? "当前模型" : "Current Model"} desc={zh ? "在配置切换中管理" : "Manage in Config Profiles"}>
-              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                {(() => {
-                  try {
-                    const t = tools.find(t => t.id === "claude");
-                    return t ? "Claude Code" : "—";
-                  } catch { return "—"; }
-                })()}
+            {/* Auto Update */}
+            <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700 }}>{zh ? "自动更新" : "Auto Update"}</h4>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{zh ? "Claude Code 更新频道" : "Update channel"}</p>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                {zh ? "通过「配置切换」页面管理 API 和模型设置" : "Use Config Profiles to manage API & model settings"}
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { value: "latest", label: zh ? "最新" : "Latest" },
+                  { value: "stable", label: zh ? "稳定" : "Stable" },
+                  { value: "disabled", label: zh ? "关闭" : "Off" },
+                ].map(opt => (
+                  <button key={opt.value}
+                    className={`btn btn-xs ${autoUpdate === opt.value ? "btn-primary" : "btn-secondary"}`}
+                    onClick={() => { setAutoUpdate(opt.value); setClaudeSetting("set_claude_auto_update", { channel: opt.value }, () => {}); }}>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-            </ToolCard>
+            </div>
           </div>
         )}
 
         {tab === "codex" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Approval Mode */}
-            <ToolCard title={zh ? "审批模式" : "Approval Mode"} desc={zh ? "操作确认级别" : "Action confirmation level"}>
+            <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700 }}>{zh ? "审批模式" : "Approval Mode"}</h4>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{zh ? "操作确认级别" : "Action confirmation level"}</p>
+              </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {[
-                  { value: "suggest", label: zh ? "建议" : "Suggest", desc: zh ? "所有操作需确认" : "Confirm all" },
-                  { value: "auto-edit", label: zh ? "自动编辑" : "Auto Edit", desc: zh ? "自动应用文件编辑" : "Auto apply edits" },
-                  { value: "full-auto", label: zh ? "全自动" : "Full Auto", desc: zh ? "自动执行所有操作" : "Auto execute all" },
+                  { value: "suggest", label: zh ? "建议" : "Suggest" },
+                  { value: "auto-edit", label: zh ? "自动编辑" : "Auto Edit" },
+                  { value: "full-auto", label: zh ? "全自动" : "Full Auto" },
                 ].map(opt => (
                   <button key={opt.value}
                     className={`btn btn-xs ${codexApproval === opt.value ? "btn-primary" : "btn-secondary"}`}
-                    title={opt.desc}
                     onClick={() => { setCodexApproval(opt.value); setCodex("approval_mode", opt.value); }}>
                     {opt.label}
                   </button>
                 ))}
               </div>
-            </ToolCard>
+            </div>
 
             {/* Reasoning Effort */}
-            <ToolCard title={zh ? "推理强度" : "Reasoning Effort"} desc={zh ? "模型推理计算量" : "Model reasoning compute"}>
+            <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700 }}>{zh ? "推理强度" : "Reasoning Effort"}</h4>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{zh ? "模型推理计算量" : "Model reasoning compute"}</p>
+              </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {[
                   { value: "low", label: zh ? "低" : "Low" },
@@ -210,32 +209,24 @@ export default function Tools() {
                   </button>
                 ))}
               </div>
-            </ToolCard>
+            </div>
 
             {/* Disable Response Storage */}
-            <ToolCard title={zh ? "禁用响应存储" : "Disable Response Storage"} desc={zh ? "不保存 API 响应到本地" : "Don't save API responses locally"}>
+            <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700 }}>{zh ? "禁用响应存储" : "Disable Response Storage"}</h4>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{zh ? "不保存 API 响应到本地" : "Don't save API responses locally"}</p>
+              </div>
               <ToggleSwitch
                 value={codexDisableStorage}
                 onChange={v => { setCodexDisableStorage(v); setCodex("disable_response_storage", String(v)); }}
                 labelOn={zh ? "已禁用" : "Disabled"}
                 labelOff={zh ? "已启用" : "Enabled"}
               />
-            </ToolCard>
+            </div>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function ToolCard({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
-  return (
-    <div className="card" style={{ padding: "16px 18px" }}>
-      <div style={{ marginBottom: 12 }}>
-        <h4 style={{ fontSize: 13, fontWeight: 700 }}>{title}</h4>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{desc}</p>
-      </div>
-      {children}
     </div>
   );
 }
