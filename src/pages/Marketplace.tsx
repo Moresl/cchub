@@ -22,6 +22,7 @@ interface SkillEntry {
   id: string; name: string; description: string; description_zh: string | null;
   category: string; author: string | null; github_url: string | null;
   cover_url: string | null; tags: string[]; content: string;
+  file_path?: string | null;
 }
 
 type MarketTab = "mcp" | "skills";
@@ -88,7 +89,7 @@ export default function Marketplace() {
       // Load installed skills
       let localSkillEntries: SkillEntry[] = [];
       try {
-        const skills = await invoke<{ id: string; name: string; description: string | null; plugin_id: string | null; trigger_command: string | null }[]>("scan_skills");
+        const skills = await invoke<{ id: string; name: string; description: string | null; plugin_id: string | null; trigger_command: string | null; file_path: string | null }[]>("scan_skills");
         setInstalledSkills(new Set(skills.map(s => s.name.toLowerCase())));
         localSkillEntries = skills.map(s => ({
           id: `local-${s.name}`,
@@ -101,6 +102,7 @@ export default function Marketplace() {
           cover_url: null,
           tags: s.trigger_command ? [s.trigger_command] : [],
           content: "",
+          file_path: s.file_path,
         }));
       } catch { /* ignore */ }
 
@@ -476,7 +478,18 @@ export default function Marketplace() {
                 const desc = showTranslation && locale === "zh" && skill.description_zh ? skill.description_zh : skill.description;
                 return (
                   <div key={skill.id} className="card card-hover" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10, cursor: "pointer" }}
-                    onClick={() => setPreviewSkill(skill)}>
+                    onClick={async () => {
+                      if (!skill.content && skill.file_path) {
+                        try {
+                          const content = await invoke<string>("read_skill_content", { filePath: skill.file_path });
+                          const updated = { ...skill, content };
+                          setSkillEntries(prev => prev.map(s => s.id === skill.id ? updated : s));
+                          setPreviewSkill(updated);
+                        } catch { setPreviewSkill(skill); }
+                      } else {
+                        setPreviewSkill(skill);
+                      }
+                    }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{ fontSize: 14, fontWeight: 600 }}>{skill.name}</span>
