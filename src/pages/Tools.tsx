@@ -87,17 +87,31 @@ export default function Tools() {
         {(["claude", "codex"] as ToolTab[]).map(id => {
           const Icon = id === "claude" ? Terminal : Code;
           const tool = tools.find(t => t.id === id);
+          const installed = tool?.installed ?? false;
           return (
             <button key={id} className={`btn btn-sm ${tab === id ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setTab(id)} style={{ gap: 6 }}>
+              onClick={() => setTab(id)} style={{ gap: 6, opacity: installed ? 1 : 0.5 }}>
               <Icon size={14} />{tool?.name || id}
+              {!installed && <span style={{ fontSize: 9, color: "var(--text-muted)" }}>({zh ? "未安装" : "N/A"})</span>}
             </button>
           );
         })}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        {tab === "claude" && (
+        {/* Not installed hint */}
+        {!(tools.find(t => t.id === tab)?.installed) && (
+          <div className="card" style={{ padding: "40px 20px", textAlign: "center" }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+              {zh ? `${tab === "claude" ? "Claude Code" : "Codex CLI"} 未安装` : `${tab === "claude" ? "Claude Code" : "Codex CLI"} not installed`}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {zh ? "安装后即可在此管理工具设置" : "Install it to manage settings here"}
+            </p>
+          </div>
+        )}
+
+        {tab === "claude" && tools.find(t => t.id === "claude")?.installed && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Permission Slider */}
             <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 20 }}>
@@ -167,7 +181,7 @@ export default function Tools() {
           </div>
         )}
 
-        {tab === "codex" && (
+        {tab === "codex" && tools.find(t => t.id === "codex")?.installed && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Approval Mode */}
             <div className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
