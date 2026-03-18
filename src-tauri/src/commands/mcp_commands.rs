@@ -322,3 +322,23 @@ pub fn sync_mcp_server_to_tool(
     record_activity(&conn, &server_name, &format!("sync_to_{}", target_tool), "success", None);
     Ok(())
 }
+
+#[tauri::command]
+pub fn unsync_mcp_server_from_tool(
+    server_name: String,
+    target_tool: String,
+) -> Result<(), String> {
+    config::unsync_mcp_from_tool(&server_name, &target_tool)
+}
+
+#[tauri::command]
+pub fn check_mcp_server_in_tools(
+    server_name: String,
+) -> std::collections::HashMap<String, bool> {
+    let tools = ["claude", "codex", "gemini", "opencode", "openclaw"];
+    let mut result = std::collections::HashMap::new();
+    for tool in tools {
+        result.insert(tool.to_string(), config::check_server_in_tool(&server_name, tool));
+    }
+    result
+}

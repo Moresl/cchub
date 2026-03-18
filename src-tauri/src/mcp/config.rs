@@ -460,3 +460,129 @@ pub fn sync_mcp_to_tool(name: &str, config: &McpServerConfig, tool_id: &str) -> 
         _ => Err(format!("Unknown tool: {}", tool_id)),
     }
 }
+
+// ── Remove MCP from different tools ──
+
+/// Remove MCP server from Codex config.toml
+pub fn remove_mcp_from_codex(name: &str) -> Result<(), String> {
+    let path = match get_codex_config_path() {
+        Some(p) if p.exists() => p,
+        _ => return Ok(()),
+    };
+
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut doc: DocumentMut = content.parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
+
+    if let Some(mcp_servers) = doc.get_mut("mcp_servers").and_then(|v| v.as_table_mut()) {
+        mcp_servers.remove(name);
+    }
+
+    crate::utils::atomic_write_string(&path, &doc.to_string()).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Remove MCP server from Gemini settings.json
+pub fn remove_mcp_from_gemini(name: &str) -> Result<(), String> {
+    let path = match get_gemini_config_path() {
+        Some(p) if p.exists() => p,
+        _ => return Ok(()),
+    };
+    remove_mcp_server_from_config(name, &path.to_string_lossy())
+}
+
+/// Remove MCP server from OpenCode opencode.json
+pub fn remove_mcp_from_opencode(name: &str) -> Result<(), String> {
+    let path = match get_opencode_config_path() {
+        Some(p) if p.exists() => p,
+        _ => return Ok(()),
+    };
+    remove_mcp_server_from_config(name, &path.to_string_lossy())
+}
+
+/// Remove MCP server from OpenClaw config.json
+pub fn remove_mcp_from_openclaw(name: &str) -> Result<(), String> {
+    let path = match get_openclaw_config_path() {
+        Some(p) if p.exists() => p,
+        _ => return Ok(()),
+    };
+    remove_mcp_server_from_config(name, &path.to_string_lossy())
+}
+
+/// Unsync MCP server from a target tool by tool ID
+pub fn unsync_mcp_from_tool(name: &str, tool_id: &str) -> Result<(), String> {
+    match tool_id {
+        "claude" => remove_claude_mcp_server(name),
+        "codex" => remove_mcp_from_codex(name),
+        "gemini" => remove_mcp_from_gemini(name),
+        "opencode" => remove_mcp_from_opencode(name),
+        "openclaw" => remove_mcp_from_openclaw(name),
+        _ => Err(format!("Unknown tool: {}", tool_id)),
+    }
+}
+
+// ── Check if MCP server exists in tool config ──
+
+fn check_server_in_json_config(name: &str, path: &std::path::Path) -> bool {
+    if !path.exists() { return false; }
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let settings: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    settings.get("mcpServers")
+        .and_then(|s| s.as_object())
+        .map(|obj| obj.contains_key(name))
+        .unwrap_or(false)
+}
+
+fn check_server_in_codex(name: &str) -> bool {
+    let path = match get_codex_config_path() {
+        Some(p) if p.exists() => p,
+        _ => return false,
+    };
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let doc: DocumentMut = match content.parse() {
+        Ok(d) => d,
+        Err(_) => return false,
+    };
+    doc.get("mcp_servers")
+        .and_then(|v| v.as_table())
+        .map(|t| t.contains_key(name))
+        .unwrap_or(false)
+}
+
+/// Check if a server exists in a specific tool's config
+pub fn check_server_in_tool(name: &str, tool_id: &str) -> bool {
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => return false,
+    };
+    match tool_id {
+        "claude" => {
+            let claude_json = home.join(".claude.json");
+            let claude_settings = home.join(".claude").join("settings.json");
+            check_server_in_json_config(name, &claude_json)
+                || check_server_in_json_config(name, &claude_settings)
+        }
+        "codex" => check_server_in_codex(name),
+        "gemini" => {
+            let p = home.join(".gemini").join("settings.json");
+            check_server_in_json_config(name, &p)
+        }
+        "opencode" => {
+            let p = home.join(".opencode").join("opencode.json");
+            check_server_in_json_config(name, &p)
+        }
+        "openclaw" => {
+            let p = home.join(".openclaw").join("config.json");
+            check_server_in_json_config(name, &p)
+        }
+        _ => false,
+    }
+}

@@ -32,9 +32,8 @@ export default function McpServers() {
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [syncingTo, setSyncingTo] = useState<string | null>(null);
-  const [syncSuccess, setSyncSuccess] = useState<string | null>(null);
   const [installedTools, setInstalledTools] = useState<DetectedTool[]>([]);
-  const [syncedTools, setSyncedTools] = useState<Record<string, Set<string>>>({});
+  const [toolSyncStatus, setToolSyncStatus] = useState<Record<string, boolean>>({});
   const [pendingDelete, setPendingDelete] = useState<McpServer | null>(null);
   const i = t();
 
@@ -114,19 +113,17 @@ export default function McpServers() {
     }
   }
 
-  async function syncToTool(toolId: string) {
+  async function toggleToolSync(toolId: string) {
     if (!selected) return;
+    const isSynced = toolSyncStatus[toolId];
     setSyncingTo(toolId);
     try {
-      await invoke("sync_mcp_server_to_tool", { serverName: selected.name, targetTool: toolId });
-      setSyncSuccess(toolId);
-      setSyncedTools((prev) => {
-        const next = { ...prev };
-        const existing = next[selected.id] ?? new Set<string>();
-        next[selected.id] = new Set([...existing, toolId]);
-        return next;
-      });
-      setTimeout(() => setSyncSuccess(null), 2000);
+      if (isSynced) {
+        await invoke("unsync_mcp_server_from_tool", { serverName: selected.name, targetTool: toolId });
+      } else {
+        await invoke("sync_mcp_server_to_tool", { serverName: selected.name, targetTool: toolId });
+      }
+      setToolSyncStatus(prev => ({ ...prev, [toolId]: !isSynced }));
     } catch (e) { console.error(e); }
     finally { setSyncingTo(null); }
   }
@@ -283,7 +280,11 @@ export default function McpServers() {
                 key={server.id}
                 className={`card card-interactive ${selected?.id === server.id ? "selected" : ""}`}
                 style={{ padding: "16px 20px", opacity: server.status === "disabled" ? 0.5 : 1 }}
-                onClick={() => { setSelected(server); setEditing(false); setSaveSuccess(false); }}
+                onClick={() => {
+                  setSelected(server); setEditing(false); setSaveSuccess(false);
+                  invoke<Record<string, boolean>>("check_mcp_server_in_tools", { serverName: server.name })
+                    .then(setToolSyncStatus).catch(() => setToolSyncStatus({}));
+                }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -441,16 +442,20 @@ export default function McpServers() {
                       </span>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {installedTools.map((tool) => {
-                          const isSynced = syncedTools[selected.id]?.has(tool.id);
+                          const isSynced = toolSyncStatus[tool.id] || false;
                           return (
                             <button
                               key={tool.id}
-                              className="btn btn-xs btn-secondary"
+                              className={`btn btn-xs ${isSynced ? "btn-primary" : "btn-secondary"}`}
                               style={{ gap: 4, textTransform: "capitalize" }}
                               disabled={syncingTo === tool.id}
-                              onClick={() => syncToTool(tool.id)}
+                              onClick={() => toggleToolSync(tool.id)}
                             >
-                              {isSynced ? <Check size={11} style={{ color: "var(--success)" }} /> : syncSuccess === tool.id ? <Check size={11} style={{ color: "var(--success)" }} /> : syncingTo === tool.id ? <div className="spinner" style={{ width: 11, height: 11 }} /> : <Share2 size={11} />}
+                              {syncingTo === tool.id
+                                ? <div className="spinner" style={{ width: 11, height: 11 }} />
+                                : isSynced
+                                  ? <Check size={11} />
+                                  : <Share2 size={11} />}
                               {tool.name}
                             </button>
                           );
