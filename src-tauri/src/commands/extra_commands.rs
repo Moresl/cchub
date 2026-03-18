@@ -1209,7 +1209,95 @@ pub fn set_claude_permissions_level(level: u32) -> Result<(), String> {
     Ok(())
 }
 
-// ── Backup / Export / Import (.sql format) ──
+/// Get Claude Code auto-update channel
+#[tauri::command]
+pub fn get_claude_auto_update() -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join(".claude").join("settings.json");
+    if !path.exists() { return Ok("latest".to_string()); }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(settings.get("autoUpdatesChannel").and_then(|v| v.as_str()).unwrap_or("latest").to_string())
+}
+
+/// Set Claude Code auto-update channel
+#[tauri::command]
+pub fn set_claude_auto_update(channel: String) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join(".claude").join("settings.json");
+    let mut settings: serde_json::Value = if path.exists() {
+        let c = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&c).map_err(|e| e.to_string())?
+    } else { serde_json::json!({}) };
+    if channel == "disabled" {
+        settings.as_object_mut().map(|o| o.remove("autoUpdatesChannel"));
+    } else {
+        settings["autoUpdatesChannel"] = serde_json::json!(channel);
+    }
+    let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_string(&path, &content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Get Codex CLI settings (approval_mode, reasoning_effort, disable_response_storage)
+#[tauri::command]
+pub fn get_codex_settings() -> Result<serde_json::Value, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join(".codex").join("config.toml");
+    if !path.exists() {
+        return Ok(serde_json::json!({ "approval_mode": "suggest", "reasoning_effort": "medium", "disable_response_storage": false }));
+    }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let doc: toml::Value = content.parse().map_err(|e: toml::de::Error| e.to_string())?;
+
+    // Read approval mode from personality or dedicated field
+    let personality = doc.get("personality").and_then(|v| v.as_str()).unwrap_or("pragmatic");
+    let approval_mode = if personality == "full-auto" { "full-auto" }
+        else if personality == "auto-edit" { "auto-edit" }
+        else { "suggest" };
+
+    let reasoning = doc.get("model_reasoning_effort").and_then(|v| v.as_str()).unwrap_or("medium");
+    let disable_storage = doc.get("disable_response_storage").and_then(|v| v.as_bool()).unwrap_or(false);
+
+    Ok(serde_json::json!({
+        "approval_mode": approval_mode,
+        "reasoning_effort": reasoning,
+        "disable_response_storage": disable_storage,
+    }))
+}
+
+/// Set a Codex CLI setting
+#[tauri::command]
+pub fn set_codex_setting(key: String, value: String) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join(".codex").join("config.toml");
+
+    let content = if path.exists() {
+        std::fs::read_to_string(&path).unwrap_or_default()
+    } else { String::new() };
+
+    let mut doc: toml_edit::DocumentMut = content.parse().map_err(|e: toml_edit::TomlError| e.to_string())?;
+
+    match key.as_str() {
+        "approval_mode" => {
+            // Codex doesn't have approval_mode directly, map to personality
+            doc["personality"] = toml_edit::value(&value);
+        }
+        "reasoning_effort" => {
+            doc["model_reasoning_effort"] = toml_edit::value(&value);
+        }
+        "disable_response_storage" => {
+            doc["disable_response_storage"] = toml_edit::value(value == "true");
+        }
+        _ => return Err(format!("Unknown setting: {}", key)),
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    crate::utils::atomic_write_string(&path, &doc.to_string()).map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 // Legacy JSON backup structs (for backward-compatible import)
 #[derive(Debug, Clone, Serialize, Deserialize)]
