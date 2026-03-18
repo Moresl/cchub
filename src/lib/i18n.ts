@@ -1,14 +1,14 @@
 const zh = {
   app: {
     name: "CCHub",
-    subtitle: "Claude Code 生态管理",
+    subtitle: "AI 编程工具管理平台",
     version: "v1.0.0",
   },
   nav: {
     dashboard: "仪表盘",
     mcpServers: "MCP 服务",
     mcpClients: "MCP 客户端",
-    logs: "请求日志",
+    logs: "操作日志",
     skills: "技能与插件",
     marketplace: "市场",
     hooks: "钩子",
@@ -214,7 +214,7 @@ const zh = {
 const en: typeof zh = {
   app: {
     name: "CCHub",
-    subtitle: "Claude Code Ecosystem",
+    subtitle: "AI Coding Tools Manager",
     version: "v1.0.0",
   },
   nav: {

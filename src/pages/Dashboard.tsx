@@ -45,14 +45,6 @@ export default function Dashboard() {
 
   return (
     <div className="animate-in">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h2 className="page-title">{i.dashboard.title}</h2>
-          <p className="page-subtitle">{locale === "zh" ? "Claude Code 生态一览" : "Claude Code ecosystem overview"}</p>
-        </div>
-      </div>
-
       {/* Stats Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
         <StatCard
@@ -83,7 +75,7 @@ export default function Dashboard() {
           value={installedTools.length}
           sub={`/ ${tools.length} ${locale === "zh" ? "已知" : "known"}`}
           icon={Monitor}
-          color="var(--text-muted)"
+          color="var(--text-primary)"
           onClick={() => navigate("/skills")}
         />
       </div>
@@ -138,7 +130,7 @@ export default function Dashboard() {
             <EmptyHint text={i.dashboard.noMcpServers} sub={i.dashboard.addMcpTip} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {servers.slice(0, 6).map((s) => (
+              {servers.slice(0, 3).map((s) => (
                 <div key={s.id} className="list-row" style={{ padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span className={`dot ${s.status === "active" ? "dot-active" : s.status === "error" ? "dot-error" : "dot-disabled"}`} />
@@ -149,9 +141,9 @@ export default function Dashboard() {
                   </span>
                 </div>
               ))}
-              {servers.length > 6 && (
+              {servers.length > 3 && (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "8px 0" }}>
-                  +{servers.length - 6} {locale === "zh" ? "更多" : "more"}
+                  +{servers.length - 3} {locale === "zh" ? "更多" : "more"}
                 </p>
               )}
             </div>
@@ -173,7 +165,7 @@ export default function Dashboard() {
             <EmptyHint text={i.dashboard.noSkills} sub={i.dashboard.addSkillTip} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {skills.slice(0, 6).map((s) => (
+              {skills.slice(0, 3).map((s) => (
                 <div key={s.id} className="list-row" style={{ padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
@@ -184,9 +176,9 @@ export default function Dashboard() {
                   )}
                 </div>
               ))}
-              {skills.length > 6 && (
+              {skills.length > 3 && (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "8px 0" }}>
-                  +{skills.length - 6} {locale === "zh" ? "更多" : "more"}
+                  +{skills.length - 3} {locale === "zh" ? "更多" : "more"}
                 </p>
               )}
             </div>

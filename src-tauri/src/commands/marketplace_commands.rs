@@ -12,12 +12,14 @@ pub fn get_marketplace_entries() -> Result<Vec<registry::RegistryEntry>, String>
 }
 
 #[tauri::command]
-pub async fn search_marketplace(query: String) -> Result<Vec<registry::RegistryEntry>, String> {
-    // Search npm registry only (no local data)
+pub async fn search_marketplace(query: String, page: Option<u32>, page_size: Option<u32>) -> Result<serde_json::Value, String> {
     if query.trim().is_empty() {
-        return Ok(Vec::new());
+        return Ok(serde_json::json!({ "entries": [], "total": 0 }));
     }
-    registry::search_npm_registry(&query).await
+    let p = page.unwrap_or(0);
+    let ps = page_size.unwrap_or(50);
+    let (entries, total) = registry::search_npm_registry(&query, p, ps).await?;
+    Ok(serde_json::json!({ "entries": entries, "total": total }))
 }
 
 #[tauri::command]

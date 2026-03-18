@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import {
   Store, Search, Download, CheckCircle, X, ExternalLink, Key, Check,
-  Plug, Zap, Plus, Globe, Image, Languages, Tag, Edit3, Trash2, Save,
+  Plug, Zap, Plus, Globe, Languages, Tag, Edit3, Trash2, Save,
 } from "lucide-react";
 import { t } from "../lib/i18n";
 import { showToast } from "../components/Toast";
@@ -26,8 +26,15 @@ interface SkillEntry {
 
 type MarketTab = "mcp" | "skills";
 
-type McpCategory = "all" | "search" | "database" | "ai" | "dev-tools" | "browser" | "filesystem" | "cloud" | "productivity";
+type McpCategory = "all" | "installed" | "search" | "database" | "ai" | "dev-tools" | "browser" | "filesystem" | "cloud" | "productivity";
 type SkillCategory = "all" | "installed" | "development" | "testing" | "documentation" | "devops" | "ai-ml" | "security" | "backend";
+
+const MCP_CATEGORY_ZH: Record<string, string> = {
+  local: "本地", search: "搜索", database: "数据库", ai: "AI",
+  "dev-tools": "开发工具", browser: "浏览器", filesystem: "文件系统",
+  cloud: "云服务", productivity: "效率", npm: "npm",
+  "official-plugin": "官方插件", "community-plugin": "社区插件",
+};
 
 export default function Marketplace() {
   const [tab, setTab] = useState<MarketTab>("mcp");
@@ -43,12 +50,15 @@ export default function Marketplace() {
   const [showEnvModal, setShowEnvModal] = useState<RegistryEntry | null>(null);
   const [envValues, setEnvValues] = useState<Record<string, string>>({});
   const [showTranslation, setShowTranslation] = useState(true);
-  const [showCovers, setShowCovers] = useState(true);
   const [showCustomSource, setShowCustomSource] = useState(false);
   const [customUrl, setCustomUrl] = useState("");
   const [loadingCustom, setLoadingCustom] = useState(false);
   const [customSources, setCustomSources] = useState<{ url: string; count: number; skillIds: string[] }[]>([]);
   const [loadingRepo, setLoadingRepo] = useState<string | null>(null);
+  const [mcpPage, setMcpPage] = useState(0);
+  const [mcpTotal, setMcpTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [previewMcp, setPreviewMcp] = useState<RegistryEntry | null>(null);
   const [previewSkill, setPreviewSkill] = useState<SkillEntry | null>(null);
   const [editingPreview, setEditingPreview] = useState(false);
   const [editContent, setEditContent] = useState("");
@@ -90,13 +100,15 @@ export default function Marketplace() {
         setSkillEntries([]);
       }
 
-      // Load npm MCP entries
+      // Load npm MCP entries (page 0)
       try {
-        const npmResults = await invoke<RegistryEntry[]>("search_marketplace", { query: "mcp server" });
+        const result = await invoke<{ entries: RegistryEntry[]; total: number }>("search_marketplace", { query: "mcp server", page: 0, pageSize: 50 });
         setEntries(prev => {
           const ids = new Set(prev.map(e => e.id));
-          return [...prev, ...npmResults.filter(e => !ids.has(e.id))];
+          return [...prev, ...result.entries.filter(e => !ids.has(e.id))];
         });
+        setMcpTotal(result.total);
+        setMcpPage(0);
       } catch { /* ignore */ }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -107,8 +119,10 @@ export default function Marketplace() {
     setLoading(true);
     try {
       if (tab === "mcp") {
-        const results = await invoke<RegistryEntry[]>("search_marketplace", { query: search });
-        setEntries(results);
+        const result = await invoke<{ entries: RegistryEntry[]; total: number }>("search_marketplace", { query: search, page: 0, pageSize: 50 });
+        setEntries(result.entries);
+        setMcpTotal(result.total);
+        setMcpPage(0);
       } else {
         // Search skills via SkillHub API
         const results = await invoke<SkillEntry[]>("search_skillhub_skills", { query: search, limit: 30 });
@@ -220,6 +234,7 @@ export default function Marketplace() {
 
   const mcpCategories: { key: McpCategory; label: string }[] = [
     { key: "all", label: locale === "zh" ? "全部" : "All" },
+    { key: "installed", label: locale === "zh" ? "已安装" : "Installed" },
     { key: "search", label: locale === "zh" ? "搜索" : "Search" },
     { key: "database", label: locale === "zh" ? "数据库" : "Database" },
     { key: "ai", label: "AI" },
@@ -243,7 +258,9 @@ export default function Marketplace() {
   ];
 
   const filteredMcp = entries.filter(e => {
-    if (mcpCategory !== "all" && e.category !== mcpCategory) return false;
+    if (mcpCategory === "installed") {
+      if (!installedIds.has(e.name) && !installedIds.has(e.id)) return false;
+    } else if (mcpCategory !== "all" && e.category !== mcpCategory) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!e.name.toLowerCase().includes(q) && !e.description.toLowerCase().includes(q)) return false;
@@ -275,26 +292,10 @@ export default function Marketplace() {
           <p className="page-subtitle">{i.marketplace.subtitle}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            className={`btn btn-ghost btn-icon-sm ${showCovers ? "" : "btn-muted"}`}
-            onClick={() => setShowCovers(!showCovers)}
-            title={locale === "zh" ? "显示封面" : "Show covers"}
-          >
-            <Image size={15} style={{ color: showCovers ? "var(--text-primary)" : "var(--text-muted)" }} />
-          </button>
           {tab === "skills" && (
-            <>
-              <button
-                className={`btn btn-ghost btn-icon-sm ${showTranslation ? "" : "btn-muted"}`}
-                onClick={() => setShowTranslation(!showTranslation)}
-                title={locale === "zh" ? "显示翻译" : "Show translation"}
-              >
-                <Languages size={15} style={{ color: showTranslation ? "var(--text-primary)" : "var(--text-muted)" }} />
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomSource(true)} style={{ gap: 6 }}>
-                <Plus size={14} />{locale === "zh" ? "自定义源" : "Custom Source"}
-              </button>
-            </>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomSource(true)} style={{ gap: 6 }}>
+              <Plus size={14} />{locale === "zh" ? "自定义源" : "Custom Source"}
+            </button>
           )}
         </div>
       </div>
@@ -321,23 +322,28 @@ export default function Marketplace() {
 
       {/* Search + Categories */}
       <div style={{ display: "flex", gap: 16, marginBottom: 20, alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, maxWidth: 400 }}>
-          <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-          <input
-            className="input"
-            style={{ paddingLeft: 40 }}
-            placeholder={tab === "mcp" ? i.marketplace.searchPlaceholder : (locale === "zh" ? "搜索技能..." : "Search skills...")}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSearch()}
-          />
-          {search && (
-            <button
-              className="btn btn-ghost btn-icon-sm"
-              style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
-              onClick={() => { setSearch(""); if (tab === "mcp") loadAll(); }}
-            ><X size={14} /></button>
-          )}
+        <div style={{ position: "relative", flex: 1, maxWidth: 400, display: "flex", gap: 8 }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+            <input
+              className="input"
+              style={{ paddingLeft: 40, paddingRight: search ? 36 : 12 }}
+              placeholder={tab === "mcp" ? i.marketplace.searchPlaceholder : (locale === "zh" ? "搜索技能..." : "Search skills...")}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+            />
+            {search && (
+              <button
+                className="btn btn-ghost btn-icon-sm"
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
+                onClick={() => { setSearch(""); if (tab === "mcp") loadAll(); }}
+              ><X size={14} /></button>
+            )}
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={handleSearch} style={{ flexShrink: 0, gap: 5 }}>
+            <Search size={13} />{locale === "zh" ? "搜索" : "Search"}
+          </button>
         </div>
         <div className="tab-bar" style={{ flexWrap: "wrap" }}>
           {(tab === "mcp" ? mcpCategories : skillCategories).map(cat => (
@@ -359,16 +365,18 @@ export default function Marketplace() {
           filteredMcp.length === 0 ? (
             <EmptyState icon={Store} text={i.marketplace.noResults} sub={i.marketplace.noResultsTip} />
           ) : (
+            <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }} className="stagger">
               {filteredMcp.map(entry => {
                 const isInstalled = installedIds.has(entry.name) || installedIds.has(entry.id);
                 const isInstalling = installing === entry.id;
                 return (
-                  <div key={entry.id} className="card card-hover" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div key={entry.id} className="card card-hover" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, cursor: "pointer" }}
+                    onClick={() => setPreviewMcp(entry)}>
                     <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{ fontSize: 14, fontWeight: 600 }}>{entry.name}</span>
-                          <span className="badge badge-muted" style={{ fontSize: 10 }}>{entry.category}</span>
+                          <span className="badge badge-muted" style={{ fontSize: 10 }}>{locale === "zh" ? (MCP_CATEGORY_ZH[entry.category] || entry.category) : entry.category}</span>
                         </div>
                         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                           {entry.description}
@@ -395,7 +403,7 @@ export default function Marketplace() {
                           <CheckCircle size={12} />{i.marketplace.installed}
                         </span>
                       ) : (
-                        <button className="btn btn-primary btn-sm" onClick={() => handleInstallMcp(entry)} disabled={isInstalling}>
+                        <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); handleInstallMcp(entry); }} disabled={isInstalling}>
                           <Download size={13} />{isInstalling ? i.marketplace.installing : i.marketplace.install}
                         </button>
                       )}
@@ -404,6 +412,55 @@ export default function Marketplace() {
                 );
               })}
             </div>
+            {mcpTotal > 50 && (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, padding: "20px 0" }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={mcpPage === 0 || loadingMore}
+                  onClick={async () => {
+                    setLoadingMore(true);
+                    try {
+                      const prevPage = mcpPage - 1;
+                      const result = await invoke<{ entries: RegistryEntry[]; total: number }>("search_marketplace", {
+                        query: search || "mcp server", page: prevPage, pageSize: 50,
+                      });
+                      setEntries(result.entries);
+                      setMcpPage(prevPage);
+                      setMcpTotal(result.total);
+                    } catch (e) { console.error(e); }
+                    finally { setLoadingMore(false); }
+                  }}
+                >
+                  {locale === "zh" ? "上一页" : "Prev"}
+                </button>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {locale === "zh"
+                    ? `第 ${mcpPage + 1} / ${Math.ceil(mcpTotal / 50)} 页（共 ${mcpTotal} 个）`
+                    : `Page ${mcpPage + 1} / ${Math.ceil(mcpTotal / 50)} (${mcpTotal} total)`}
+                </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={(mcpPage + 1) * 50 >= mcpTotal || loadingMore}
+                  onClick={async () => {
+                    setLoadingMore(true);
+                    try {
+                      const nextPage = mcpPage + 1;
+                      const result = await invoke<{ entries: RegistryEntry[]; total: number }>("search_marketplace", {
+                        query: search || "mcp server", page: nextPage, pageSize: 50,
+                      });
+                      setEntries(result.entries);
+                      setMcpPage(nextPage);
+                      setMcpTotal(result.total);
+                    } catch (e) { console.error(e); }
+                    finally { setLoadingMore(false); }
+                  }}
+                >
+                  {loadingMore ? <div className="spinner" style={{ width: 12, height: 12 }} /> : null}
+                  {locale === "zh" ? "下一页" : "Next"}
+                </button>
+              </div>
+            )}
+            </>
           )
         ) : (
           /* Skills Grid */
@@ -745,6 +802,70 @@ export default function Marketplace() {
           </div>
         </div>
       )}
+      {/* MCP Preview Modal */}
+      {previewMcp && (() => {
+        const isInstalled = installedIds.has(previewMcp.name) || installedIds.has(previewMcp.id);
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "var(--bg-overlay)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+            onClick={() => setPreviewMcp(null)}>
+            <div className="section-card" style={{ width: 560, maxHeight: "80vh", overflowY: "auto" }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700 }}>{previewMcp.name}</h3>
+                <button className="btn btn-ghost btn-icon-sm" onClick={() => setPreviewMcp(null)}><X size={16} /></button>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
+                {previewMcp.description}
+              </p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+                <span className="badge badge-muted">{locale === "zh" ? (MCP_CATEGORY_ZH[previewMcp.category] || previewMcp.category) : previewMcp.category}</span>
+                {previewMcp.install_type && <span className="badge badge-muted">{previewMcp.install_type}</span>}
+                {previewMcp.package_name && <span className="badge badge-accent" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{previewMcp.package_name}</span>}
+              </div>
+              {/* Command info */}
+              <div style={{ marginBottom: 16 }}>
+                <span className="field-label">{locale === "zh" ? "安装命令" : "Command"}</span>
+                <div style={{ padding: "10px 14px", borderRadius: 6, background: "var(--bg-input)", border: "1px solid var(--border-default)", fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "var(--text-secondary)", wordBreak: "break-all" }}>
+                  {previewMcp.command} {previewMcp.args.join(" ")}
+                </div>
+              </div>
+              {previewMcp.env_keys.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <span className="field-label">{locale === "zh" ? "需要的环境变量" : "Required Environment Variables"}</span>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {previewMcp.env_keys.map(key => (
+                      <span key={key} className="badge badge-warning" style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
+                        <Key size={10} />{key}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                {previewMcp.github_url && (
+                  <button className="btn btn-secondary btn-sm"
+                    onClick={() => shellOpen(previewMcp.github_url!)}
+                    style={{ gap: 5 }}>
+                    <ExternalLink size={13} />GitHub
+                  </button>
+                )}
+                <button className="btn btn-secondary btn-sm" onClick={() => setPreviewMcp(null)}>
+                  {locale === "zh" ? "关闭" : "Close"}
+                </button>
+                {isInstalled ? (
+                  <span className="badge badge-success" style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px" }}>
+                    <CheckCircle size={12} />{i.marketplace.installed}
+                  </span>
+                ) : (
+                  <button className="btn btn-primary btn-sm" onClick={() => { handleInstallMcp(previewMcp); setPreviewMcp(null); }} style={{ gap: 5 }}>
+                    <Download size={13} />{i.marketplace.install}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <ConfirmDialog
         isOpen={!!pendingUninstall}
         title={locale === "zh" ? "卸载技能" : "Uninstall Skill"}

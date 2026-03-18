@@ -176,7 +176,7 @@ body {
   background: var(--bg-card-hover);
 }
 .sidebar-link.active {
-  color: var(--text-primary);
+  color: var(--accent);
   background: var(--bg-card);
   font-weight: 600;
   border: 1px solid var(--border-default);
@@ -189,7 +189,7 @@ body {
   transform: translateY(-50%);
   width: 2px;
   height: 14px;
-  background: var(--text-primary);
+  background: var(--accent);
   border-radius: 0 2px 2px 0;
 }
 

@@ -55,18 +55,6 @@ pub struct SkillRegistryEntry {
     pub content: String,
 }
 
-#[allow(dead_code)]
-pub fn get_curated_registry() -> Vec<RegistryEntry> {
-    let json = include_str!("registry_data.json");
-    serde_json::from_str(json).unwrap_or_default()
-}
-
-#[allow(dead_code)]
-pub fn get_skills_registry() -> Vec<SkillRegistryEntry> {
-    let json = include_str!("skills_registry_data.json");
-    serde_json::from_str(json).unwrap_or_default()
-}
-
 // ── SkillHub API Integration ──
 
 /// Fetch skills from the SkillHub catalog API (https://www.skillhub.club)
@@ -478,13 +466,15 @@ fn guess_category(desc: &str) -> String {
     else { "development".to_string() }
 }
 
-pub async fn search_npm_registry(query: &str) -> Result<Vec<RegistryEntry>, String> {
+pub async fn search_npm_registry(query: &str, page: u32, page_size: u32) -> Result<(Vec<RegistryEntry>, u32), String> {
+    let client = build_http_client()?;
+    let from = page * page_size;
+
     let url = format!(
-        "https://registry.npmjs.org/-/v1/search?text=mcp+server+{}&size=20",
-        query
+        "https://registry.npmjs.org/-/v1/search?text=mcp+server+{}&size={}&from={}",
+        query, page_size, from
     );
 
-    let client = build_http_client()?;
     let resp = client.get(&url)
         .send()
         .await
@@ -495,37 +485,45 @@ pub async fn search_npm_registry(query: &str) -> Result<Vec<RegistryEntry>, Stri
         .await
         .map_err(|e| format!("Failed to parse npm response: {}", e))?;
 
-    let entries = body["objects"]
-        .as_array()
-        .unwrap_or(&vec![])
-        .iter()
-        .filter_map(|obj| {
+    let total = body["total"].as_u64().unwrap_or(0) as u32;
+
+    let mut entries: Vec<RegistryEntry> = Vec::new();
+    if let Some(arr) = body["objects"].as_array() {
+        for obj in arr {
             let pkg = &obj["package"];
-            let name = pkg["name"].as_str()?;
+            let name = match pkg["name"].as_str() {
+                Some(n) => n,
+                None => continue,
+            };
             let desc = pkg["description"].as_str().unwrap_or("");
 
-            // Only include packages that look like MCP servers
             if !name.contains("mcp") && !desc.to_lowercase().contains("mcp") {
-                return None;
+                continue;
             }
 
-            Some(RegistryEntry {
+            entries.push(RegistryEntry {
                 id: format!("npm-{}", name),
                 name: name.to_string(),
                 description: desc.to_string(),
                 category: "npm".to_string(),
                 install_type: "npm".to_string(),
                 package_name: Some(name.to_string()),
-                github_url: pkg["links"]["repository"].as_str().map(|s| s.to_string()),
+                github_url: pkg["links"]["repository"].as_str().map(|s| {
+                    s.trim_start_matches("git+")
+                     .trim_end_matches(".git")
+                     .replace("git://", "https://")
+                     .replace("ssh://git@", "https://")
+                     .to_string()
+                }),
                 command: "npx".to_string(),
                 args: vec!["-y".to_string(), name.to_string()],
                 env_keys: vec![],
                 source: "npm-search".to_string(),
-            })
-        })
-        .collect();
+            });
+        }
+    }
 
-    Ok(entries)
+    Ok((entries, total))
 }
 
 pub fn install_from_registry(

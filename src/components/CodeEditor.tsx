@@ -22,10 +22,7 @@ const jsonLinter = linter((view) => {
   const text = view.state.doc.toString();
   if (!text.trim()) return diagnostics;
   try {
-    const parsed = JSON.parse(text);
-    if (typeof parsed !== "object" || Array.isArray(parsed)) {
-      diagnostics.push({ from: 0, to: text.length, severity: "error", message: "Must be a JSON object" });
-    }
+    JSON.parse(text);
   } catch (e: any) {
     const match = e.message?.match(/position (\d+)/);
     const pos = match ? Math.min(parseInt(match[1]), text.length) : 0;

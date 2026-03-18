@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Activity, RefreshCw, Calendar } from "lucide-react";
+import { Activity, RefreshCw } from "lucide-react";
 import { getLocale } from "../lib/i18n";
 
 interface ActivityItem {
@@ -13,16 +13,10 @@ interface ActivityItem {
   recorded_at: string;
 }
 
-interface HeatmapDay {
-  date: string;
-  count: number;
-}
-
 export default function Logs() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr());
+  const [selectedDate] = useState<string>(todayStr());
   const locale = getLocale();
 
   useEffect(() => { load(); }, []);
@@ -30,12 +24,8 @@ export default function Logs() {
   async function load() {
     setLoading(true);
     try {
-      const [acts, hm] = await Promise.all([
-        invoke<ActivityItem[]>("get_activity_logs", { date: selectedDate }),
-        invoke<HeatmapDay[]>("get_activity_heatmap", { days: 30 }),
-      ]);
+      const acts = await invoke<ActivityItem[]>("get_activity_logs", { date: selectedDate });
       setActivities(acts);
-      setHeatmap(hm);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
@@ -46,22 +36,6 @@ export default function Logs() {
       .catch(console.error);
   }, [selectedDate]);
 
-  // Build 30-day grid
-  const heatmapGrid = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of heatmap) map[d.date] = d.count;
-    const days: { date: string; count: number; label: string }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const ds = dateStr(d);
-      days.push({ date: ds, count: map[ds] || 0, label: `${d.getMonth() + 1}/${d.getDate()}` });
-    }
-    return days;
-  }, [heatmap]);
-
-  const maxCount = Math.max(1, ...heatmapGrid.map(d => d.count));
-
   if (loading) {
     return <div className="loading-center"><div className="spinner" /><span style={{ fontSize: 13, color: "var(--text-muted)" }}>{locale === "zh" ? "加载中..." : "Loading..."}</span></div>;
   }
@@ -70,49 +44,12 @@ export default function Logs() {
     <div className="animate-in" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div className="page-header">
         <div>
-          <h2 className="page-title">{locale === "zh" ? "请求日志" : "Request Logs"}</h2>
+          <h2 className="page-title">{locale === "zh" ? "操作日志" : "Activity Logs"}</h2>
           <p className="page-subtitle">{locale === "zh" ? "MCP 服务器活动记录与统计" : "MCP server activity and statistics"}</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={load}>
           <RefreshCw size={14} />{locale === "zh" ? "刷新" : "Refresh"}
         </button>
-      </div>
-
-      {/* Activity Heatmap */}
-      <div className="section-card" style={{ marginBottom: 20, padding: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <Calendar size={14} style={{ color: "var(--text-secondary)" }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            {locale === "zh" ? "活动热力图（近30天）" : "Activity Heatmap (30 days)"}
-          </span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(30, 1fr)", gap: 3 }}>
-          {heatmapGrid.map(day => {
-            const intensity = day.count / maxCount;
-            const isSelected = day.date === selectedDate;
-            return (
-              <div
-                key={day.date}
-                title={`${day.label}: ${day.count} ${locale === "zh" ? "次请求" : "requests"}`}
-                onClick={() => setSelectedDate(day.date)}
-                style={{
-                  aspectRatio: "1",
-                  borderRadius: 3,
-                  cursor: "pointer",
-                  background: day.count === 0
-                    ? "var(--bg-elevated)"
-                    : `rgba(250, 250, 250, ${0.1 + intensity * 0.5})`,
-                  border: isSelected ? "2px solid var(--text-primary)" : "1px solid transparent",
-                  transition: "all 0.1s ease",
-                }}
-              />
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{heatmapGrid[0]?.label}</span>
-          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{locale === "zh" ? "今天" : "Today"}</span>
-        </div>
       </div>
 
       {/* Activity Log */}

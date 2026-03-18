@@ -47,6 +47,29 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <div className="sidebar-footer">
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "3px 10px 3px 8px",
+          borderRadius: 20,
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-default)",
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: "50%",
+            background: "#22c55e",
+            boxShadow: "0 0 4px rgba(34, 197, 94, 0.5)",
+          }} />
+          <span style={{
+            fontSize: 10,
+            fontWeight: 500,
+            color: "var(--text-secondary)",
+            letterSpacing: "0.03em",
+          }}>
+            v1.1.0
+          </span>
+        </div>
+      </div>
     </aside>
   );
 }
