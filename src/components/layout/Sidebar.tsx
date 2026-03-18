@@ -1,6 +1,8 @@
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Plug, Zap, Webhook, Settings, Shield, Store, Monitor, Activity, Layers, ArrowRightLeft, Wrench } from "lucide-react";
 import { t } from "../../lib/i18n";
+import { useState, useEffect } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 
 const navItems = [
   { path: "/", key: "dashboard" as const, icon: LayoutDashboard },
@@ -19,6 +21,8 @@ const navItems = [
 
 export default function Sidebar() {
   const i = t();
+  const [version, setVersion] = useState("");
+  useEffect(() => { getVersion().then(setVersion).catch(() => {}); }, []);
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -67,7 +71,7 @@ export default function Sidebar() {
             color: "var(--text-secondary)",
             letterSpacing: "0.03em",
           }}>
-            v1.1.0
+            v{version}
           </span>
         </div>
       </div>

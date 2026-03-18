@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/nicolo-ribaudo.github.io/refs/heads/main/tauri-v2-schema.json",
   "productName": "CCHub",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "identifier": "com.cchub.app",
   "build": {
     "frontendDist": "../dist",

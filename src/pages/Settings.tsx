@@ -5,6 +5,7 @@ import { t, getLocale, setLocale, type Locale } from "../lib/i18n";
 import { showToast } from "../components/Toast";
 import { getTheme, setTheme, type Theme } from "../lib/theme";
 import { checkAppUpdate, installAppUpdate, type AppUpdateHandle, type AppUpdateResult } from "../lib/appUpdater";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface CustomPath { tool_id: string; config_dir: string | null; mcp_config_path: string | null; skills_dir: string | null; }
 interface DetectedTool { id: string; name: string; config_path: string; skills_dir: string; mcp_config_path: string; installed: boolean; install_command: string; install_url: string; }
@@ -19,6 +20,7 @@ export default function Settings() {
   const [installing, setInstalling] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateHandle, setUpdateHandle] = useState<AppUpdateHandle | null>(null);
+  const [appVersion, setAppVersion] = useState("");
   const [tools, setTools] = useState<DetectedTool[]>([]);
   const [customPaths, setCustomPaths] = useState<CustomPath[]>([]);
   const [pathSaved, setPathSaved] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function Settings() {
   const i = t();
   const loc = getLocale();
 
-  useEffect(() => { loadToolsAndPaths(); loadProxy(); }, []);
+  useEffect(() => { loadToolsAndPaths(); loadProxy(); getVersion().then(v => setAppVersion("v" + v)).catch(() => {}); }, []);
 
   async function loadProxy() {
     try {
@@ -276,7 +278,7 @@ export default function Settings() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 500 }}>{i.settings.currentVersion}</p>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>{i.app.version}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>{appVersion}</p>
               </div>
               <button
                 className="btn btn-sm btn-secondary"
@@ -442,7 +444,7 @@ export default function Settings() {
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>{i.settings.aboutDesc}</p>
           <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-            <span className="badge badge-muted">{i.app.version}</span>
+            <span className="badge badge-muted">{appVersion}</span>
             <span className="badge badge-muted">{i.settings.license}</span>
           </div>
         </div>
