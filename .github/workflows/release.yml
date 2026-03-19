@@ -21,8 +21,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -39,21 +37,20 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'CCHub ${{ github.ref_name }}'
           releaseBody: |
-            See the [full changelog](https://github.com/Moresl/cchub/blob/master/CHANGELOG.md).
+            ## 下载 / Download
 
-            ## Download
-
-            | File | Description |
-            |------|-------------|
-            | `CCHub_*_x64-setup.exe` | **Recommended** — NSIS installer |
-            | `CCHub_*_x64_en-US.msi` | MSI installer |
-            | `CCHub_*_x64_portable.exe` | Portable — no install needed |
+            | 文件 | 说明 |
+            |------|------|
+            | `CCHub_*_x64-setup.exe` | Windows NSIS 安装包 |
+            | `CCHub_*_x64_en-US.msi` | Windows MSI 安装包 |
+            | `CCHub_*_aarch64.dmg` | macOS Apple Silicon |
+            | `CCHub_*_x64.dmg` | macOS Intel |
+            | `CCHub_*_amd64.deb` | Linux deb 包 |
+            | `CCHub_*_amd64.AppImage` | Linux AppImage |
           releaseDraft: false
           prerelease: false
 
@@ -72,8 +69,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -92,8 +87,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'CCHub ${{ github.ref_name }}'
@@ -113,8 +106,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -136,8 +127,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'CCHub ${{ github.ref_name }}'
