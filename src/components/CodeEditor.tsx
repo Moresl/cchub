@@ -10,7 +10,7 @@ import { ViewUpdate } from "@codemirror/view";
 interface CodeEditorProps {
   value: string;
   onChange?: (value: string) => void;
-  language?: "json" | "markdown" | "yaml" | "toml";
+  language?: "json" | "markdown" | "yaml" | "toml" | "text";
   readOnly?: boolean;
   minHeight?: number;
   maxHeight?: number;
@@ -77,7 +77,10 @@ function getLangExtension(language: string) {
     case "toml":
     case "markdown":
       return [javascript()];
-    default: return [json()];
+    case "text":
+      return [];
+    default:
+      return [];
   }
 }
 

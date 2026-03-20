@@ -13,6 +13,8 @@ import Marketplace from "./pages/Marketplace";
 import Workspaces from "./pages/Workspaces";
 import Profiles from "./pages/Profiles";
 import Tools from "./pages/Tools";
+import ClaudeMd from "./pages/ClaudeMd";
+import ConfigFiles from "./pages/ConfigFiles";
 import { ToastContainer } from "./components/Toast";
 
 function App() {
@@ -34,6 +36,8 @@ function App() {
               <Route path="/hooks" element={<Hooks />} />
               <Route path="/workspaces" element={<Workspaces />} />
               <Route path="/profiles" element={<Profiles />} />
+              <Route path="/claude-md" element={<ClaudeMd />} />
+              <Route path="/config-files" element={<ConfigFiles />} />
               <Route path="/tools" element={<Tools />} />
               <Route path="/security" element={<Security />} />
               <Route path="/settings" element={<Settings />} />

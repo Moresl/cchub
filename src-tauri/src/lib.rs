@@ -17,12 +17,16 @@ use commands::claude_md_commands;
 use commands::security_commands;
 use commands::marketplace_commands;
 use commands::extra_commands;
+use commands::config_files_commands;
 
 use tauri::{
     Manager,
+    image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconEvent,
 };
+
+const WINDOW_ICON: Image<'_> = tauri::include_image!("./icons/icon.png");
 
 pub fn run() {
     utils::install_panic_hook();
@@ -78,6 +82,7 @@ pub fn run() {
             // Handle window close → hide to tray instead of quit
             let handle3 = app_handle.clone();
             if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_icon(WINDOW_ICON.clone());
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
@@ -170,6 +175,11 @@ pub fn run() {
             extra_commands::get_custom_paths,
             extra_commands::save_custom_path,
             extra_commands::delete_custom_path,
+            // Config file editor
+            config_files_commands::get_config_roots,
+            config_files_commands::get_config_file_tree,
+            config_files_commands::read_config_file_content,
+            config_files_commands::write_config_file_content,
             // Config profiles
             extra_commands::sync_config_profiles,
             extra_commands::get_config_profiles,

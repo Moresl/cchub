@@ -6,3 +6,4 @@ pub mod claude_md_commands;
 pub mod security_commands;
 pub mod marketplace_commands;
 pub mod extra_commands;
+pub mod config_files_commands;
