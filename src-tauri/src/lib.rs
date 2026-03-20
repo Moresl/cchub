@@ -18,6 +18,12 @@ use commands::security_commands;
 use commands::marketplace_commands;
 use commands::extra_commands;
 
+use tauri::{
+    Manager,
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::TrayIconEvent,
+};
+
 pub fn run() {
     utils::install_panic_hook();
 
@@ -28,6 +34,60 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             db::init_db(&app_handle)?;
+
+            // Build tray menu
+            let show = MenuItemBuilder::with_id("show", "显示 CCHub").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "退出").build(app)?;
+            let menu = MenuBuilder::new(app)
+                .item(&show)
+                .separator()
+                .item(&quit)
+                .build()?;
+
+            // Attach menu to tray icon (created by tauri.conf.json trayIcon config)
+            if let Some(tray) = app.tray_by_id("main") {
+                tray.set_menu(Some(menu))?;
+                let handle = app_handle.clone();
+                tray.on_menu_event(move |_app, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(w) = handle.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
+                    }
+                });
+                let handle2 = app_handle.clone();
+                tray.on_tray_icon_event(move |_tray, event| {
+                    if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
+                        if let Some(w) = handle2.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.unminimize();
+                            let _ = w.set_focus();
+                        }
+                    }
+                });
+            }
+
+            // Handle window close → hide to tray instead of quit
+            let handle3 = app_handle.clone();
+            if let Some(window) = app.get_webview_window("main") {
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Some(w) = handle3.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

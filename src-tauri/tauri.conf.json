@@ -24,6 +24,11 @@
     ],
     "security": {
       "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false,
+      "tooltip": "CCHub - AI 编程工具管理平台"
     }
   },
   "bundle": {
