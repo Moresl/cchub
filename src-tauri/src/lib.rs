@@ -137,6 +137,9 @@ pub fn run() {
             claude_md_commands::write_claude_md_content,
             claude_md_commands::get_claude_md_templates,
             claude_md_commands::create_new_claude_md,
+            claude_md_commands::delete_claude_md_file,
+            claude_md_commands::disable_claude_md_file,
+            claude_md_commands::enable_claude_md_file,
             // Security commands
             security_commands::run_security_audit,
             security_commands::get_server_audit,

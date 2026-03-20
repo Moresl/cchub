@@ -853,3 +853,163 @@ textarea.input {
   margin-top: auto;
   z-index: 10;
 }
+
+/* ═══ MDXEditor Dark Theme Overrides ═══ */
+
+.mdx-editor-wrapper .dark-theme {
+  --accentBase: var(--accent);
+  --accentBgSubtle: var(--accent-subtle);
+  --accentTextContrast: var(--accent-foreground);
+  --basePageBg: var(--bg-input);
+  --baseBgSubtle: var(--bg-elevated);
+  font-family: inherit;
+}
+
+.mdx-editor-wrapper .dark-theme [role="toolbar"] {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
+  border-radius: 6px 6px 0 0;
+  padding: 4px 8px;
+  gap: 2px;
+}
+
+.mdx-editor-wrapper .dark-theme [role="toolbar"] button {
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.mdx-editor-wrapper .dark-theme [role="toolbar"] button:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.mdx-editor-wrapper .dark-theme [role="toolbar"] button[data-state="on"] {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+.mdx-editor-wrapper .dark-theme [role="toolbar"] select {
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.mdx-editor-wrapper .mdx-editor-content {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 16px 20px;
+  min-height: 350px;
+}
+
+.mdx-editor-wrapper .mdx-editor-content h1,
+.mdx-editor-wrapper .mdx-editor-content h2,
+.mdx-editor-wrapper .mdx-editor-content h3,
+.mdx-editor-wrapper .mdx-editor-content h4 {
+  color: var(--text-primary);
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+}
+
+.mdx-editor-wrapper .mdx-editor-content h1 { font-size: 1.5em; }
+.mdx-editor-wrapper .mdx-editor-content h2 { font-size: 1.3em; }
+.mdx-editor-wrapper .mdx-editor-content h3 { font-size: 1.1em; }
+
+.mdx-editor-wrapper .mdx-editor-content a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.mdx-editor-wrapper .mdx-editor-content blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 16px;
+  color: var(--text-muted);
+  margin: 12px 0;
+}
+
+.mdx-editor-wrapper .mdx-editor-content code {
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9em;
+}
+
+.mdx-editor-wrapper .mdx-editor-content pre {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
+.mdx-editor-wrapper .mdx-editor-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.mdx-editor-wrapper .mdx-editor-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+}
+
+.mdx-editor-wrapper .mdx-editor-content th,
+.mdx-editor-wrapper .mdx-editor-content td {
+  border: 1px solid var(--border-default);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.mdx-editor-wrapper .mdx-editor-content th {
+  background: var(--bg-elevated);
+  font-weight: 600;
+}
+
+.mdx-editor-wrapper .mdx-editor-content ul,
+.mdx-editor-wrapper .mdx-editor-content ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+
+.mdx-editor-wrapper .mdx-editor-content li {
+  margin: 4px 0;
+}
+
+.mdx-editor-wrapper .mdx-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: 16px 0;
+}
+
+/* MDXEditor popup/dialog overrides */
+.mdx-editor-wrapper .dark-theme [data-radix-popper-content-wrapper] {
+  z-index: 100;
+}
+
+.mdx-editor-wrapper .dark-theme [role="dialog"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+
+.mdx-editor-wrapper .dark-theme [role="dialog"] input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .mdx-editor-wrapper .dark-theme {
+  --accentBase: #0a0a0a;
+  --basePageBg: var(--bg-input);
+}

@@ -25,3 +25,18 @@ pub fn get_claude_md_templates() -> Result<Vec<manager::ClaudeMdTemplate>, Strin
 pub fn create_new_claude_md(dir_path: String, content: String) -> Result<String, String> {
     manager::create_claude_md(&dir_path, &content)
 }
+
+#[command]
+pub fn delete_claude_md_file(path: String) -> Result<(), String> {
+    manager::delete_claude_md(&path)
+}
+
+#[command]
+pub fn disable_claude_md_file(path: String) -> Result<String, String> {
+    manager::disable_claude_md(&path)
+}
+
+#[command]
+pub fn enable_claude_md_file(path: String) -> Result<String, String> {
+    manager::enable_claude_md(&path)
+}

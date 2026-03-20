@@ -9,6 +9,7 @@ pub struct ClaudeMdFile {
     pub size_bytes: u64,
     pub modified_at: Option<String>,
     pub content_preview: String,
+    pub disabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -26,11 +27,13 @@ pub fn scan_claude_md_files() -> Vec<ClaudeMdFile> {
         None => return results,
     };
 
-    // Check global CLAUDE.md
-    let global_claude_md = home.join(".claude").join("CLAUDE.md");
-    if global_claude_md.exists() {
-        if let Some(entry) = read_claude_md_entry(&global_claude_md, "Global (.claude)") {
-            results.push(entry);
+    // Check global CLAUDE.md and CLAUDE.md.bak
+    for filename in &["CLAUDE.md", "CLAUDE.md.bak"] {
+        let global_claude_md = home.join(".claude").join(filename);
+        if global_claude_md.exists() {
+            if let Some(entry) = read_claude_md_entry(&global_claude_md, "Global (.claude)") {
+                results.push(entry);
+            }
         }
     }
 
@@ -64,26 +67,32 @@ fn walk_for_claude_md(dir: &Path, depth: usize, max_depth: usize, results: &mut 
         return;
     }
 
-    let claude_md_path = dir.join("CLAUDE.md");
-    if claude_md_path.exists() {
-        let project_name = dir
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| dir.to_string_lossy().to_string());
-        if let Some(entry) = read_claude_md_entry(&claude_md_path, &project_name) {
-            results.push(entry);
+    // Check CLAUDE.md and CLAUDE.md.bak
+    for filename in &["CLAUDE.md", "CLAUDE.md.bak"] {
+        let claude_md_path = dir.join(filename);
+        if claude_md_path.exists() {
+            let project_name = dir
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| dir.to_string_lossy().to_string());
+            if let Some(entry) = read_claude_md_entry(&claude_md_path, &project_name) {
+                results.push(entry);
+            }
         }
     }
 
-    // Also check .claude/CLAUDE.md within projects
-    let nested_claude_md = dir.join(".claude").join("CLAUDE.md");
-    if nested_claude_md.exists() {
-        let project_name = dir
-            .file_name()
-            .map(|n| format!("{} (.claude)", n.to_string_lossy()))
-            .unwrap_or_else(|| dir.to_string_lossy().to_string());
-        if let Some(entry) = read_claude_md_entry(&nested_claude_md, &project_name) {
-            results.push(entry);
+    // Also check .claude/CLAUDE.md and .claude/CLAUDE.md.bak within projects
+    let claude_dir = dir.join(".claude");
+    for filename in &["CLAUDE.md", "CLAUDE.md.bak"] {
+        let nested_claude_md = claude_dir.join(filename);
+        if nested_claude_md.exists() {
+            let project_name = dir
+                .file_name()
+                .map(|n| format!("{} (.claude)", n.to_string_lossy()))
+                .unwrap_or_else(|| dir.to_string_lossy().to_string());
+            if let Some(entry) = read_claude_md_entry(&nested_claude_md, &project_name) {
+                results.push(entry);
+            }
         }
     }
 
@@ -132,12 +141,15 @@ fn read_claude_md_entry(path: &Path, project_name: &str) -> Option<ClaudeMdFile>
         content.clone()
     };
 
+    let disabled = path.extension().map_or(false, |ext| ext == "bak");
+
     Some(ClaudeMdFile {
         path: path.to_string_lossy().to_string(),
         project_name: project_name.to_string(),
         size_bytes: metadata.len(),
         modified_at,
         content_preview: preview,
+        disabled,
     })
 }
 
@@ -277,4 +289,46 @@ ruff format .        # Format
 "#.to_string(),
         },
     ]
+}
+
+pub fn delete_claude_md(path: &str) -> Result<(), String> {
+    let p = Path::new(path);
+    if !p.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    // Only allow deleting CLAUDE.md or CLAUDE.md.bak files
+    let filename = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    if filename != "CLAUDE.md" && filename != "CLAUDE.md.bak" {
+        return Err("Can only delete CLAUDE.md or CLAUDE.md.bak files".to_string());
+    }
+    fs::remove_file(p).map_err(|e| format!("Failed to delete {}: {}", path, e))
+}
+
+pub fn disable_claude_md(path: &str) -> Result<String, String> {
+    let p = Path::new(path);
+    if !p.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if path.ends_with(".bak") {
+        return Err("File is already disabled".to_string());
+    }
+    let new_path = format!("{}.bak", path);
+    fs::rename(p, &new_path).map_err(|e| format!("Failed to disable: {}", e))?;
+    Ok(new_path)
+}
+
+pub fn enable_claude_md(path: &str) -> Result<String, String> {
+    let p = Path::new(path);
+    if !p.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if !path.ends_with(".bak") {
+        return Err("File is not disabled".to_string());
+    }
+    let new_path = path.trim_end_matches(".bak").to_string();
+    if Path::new(&new_path).exists() {
+        return Err(format!("Cannot enable: {} already exists", new_path));
+    }
+    fs::rename(p, &new_path).map_err(|e| format!("Failed to enable: {}", e))?;
+    Ok(new_path)
 }
