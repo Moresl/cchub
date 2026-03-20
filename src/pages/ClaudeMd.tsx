@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, FileText, Save, RotateCcw, Plus, X, Check, Trash2, Pencil } from "lucide-react";
+import { RefreshCw, FileText, Save, RotateCcw, Plus, X, Check, Trash2, Pencil, ArrowLeft } from "lucide-react";
 import { t } from "../lib/i18n";
 import { showToast } from "../components/Toast";
 import CodeEditor from "../components/CodeEditor";
@@ -169,6 +169,81 @@ export default function ClaudeMd() {
     );
   }
 
+  // ── Editor Page View ──
+  if (editingFile) {
+    return (
+      <div className="animate-in" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div className="page-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="btn btn-ghost btn-icon-sm" onClick={closeEditor}>
+              <ArrowLeft size={16} />
+            </button>
+            <FileText size={18} style={{ color: "var(--text-secondary)" }} />
+            <h2 className="page-title" style={{ margin: 0 }}>{editingFile.project_name}</h2>
+            {editingFile.disabled && (
+              <span className="badge badge-muted" style={{ fontSize: 10 }}>{i.claudeMd.disabled}</span>
+            )}
+            <span className="badge badge-accent">{formatSize(editingFile.size_bytes)}</span>
+            {hasChanges && (
+              <span className="badge badge-warning">{locale === "zh" ? "未保存" : "Unsaved"}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {hasChanges && (
+              <button className="btn btn-secondary btn-sm" onClick={handleRevert}>
+                <RotateCcw size={14} />{i.claudeMd.revert}
+              </button>
+            )}
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleSave}
+              disabled={!hasChanges || saving}
+            >
+              {saved ? <Check size={14} /> : <Save size={14} />}
+              {saved ? i.claudeMd.saved : i.common.save}
+            </button>
+          </div>
+        </div>
+
+        {/* File Path */}
+        <div style={{ marginBottom: 16 }}>
+          <div className="code-block" style={{ fontSize: 11 }}>{editingFile.path}</div>
+        </div>
+
+        {/* Editor */}
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {loadingContent ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 40, justifyContent: "center" }}>
+              <div className="spinner" style={{ width: 18, height: 18 }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading...</span>
+            </div>
+          ) : isMarkdownFile(editingFile.path) ? (
+            <Suspense fallback={
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 40, justifyContent: "center" }}>
+                <div className="spinner" style={{ width: 18, height: 18 }} />
+              </div>
+            }>
+              <MarkdownEditor
+                value={content}
+                onChange={setContent}
+                minHeight={500}
+              />
+            </Suspense>
+          ) : (
+            <CodeEditor
+              value={content}
+              onChange={setContent}
+              language="json"
+              minHeight={500}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── File List View ──
   return (
     <div className="animate-in" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div className="page-header">
@@ -318,112 +393,12 @@ export default function ClaudeMd() {
         </div>
       )}
 
-      {/* Editor Modal */}
-      {editingFile && (
-        <div
-          style={{
-            position: "fixed", inset: 0, background: "var(--bg-overlay)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-          }}
-          onClick={closeEditor}
-        >
-          <div
-            className="card"
-            style={{
-              width: "90%", maxWidth: 960, height: "85vh",
-              display: "flex", flexDirection: "column",
-              padding: 0, overflow: "hidden",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "16px 24px",
-              borderBottom: "1px solid var(--border-default)",
-              flexShrink: 0,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-                <FileText size={18} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
-                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {editingFile.project_name}
-                </h3>
-                {editingFile.disabled && (
-                  <span className="badge badge-muted" style={{ fontSize: 10 }}>{i.claudeMd.disabled}</span>
-                )}
-                <span className="badge badge-accent" style={{ flexShrink: 0 }}>{formatSize(editingFile.size_bytes)}</span>
-                {hasChanges && (
-                  <span className="badge badge-warning" style={{ flexShrink: 0 }}>{locale === "zh" ? "未保存" : "Unsaved"}</span>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                {hasChanges && (
-                  <button className="btn btn-secondary btn-sm" onClick={handleRevert}>
-                    <RotateCcw size={14} />{i.claudeMd.revert}
-                  </button>
-                )}
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={handleSave}
-                  disabled={!hasChanges || saving}
-                >
-                  {saved ? <Check size={14} /> : <Save size={14} />}
-                  {saved ? i.claudeMd.saved : i.common.save}
-                </button>
-                <button className="btn btn-ghost btn-icon-sm" onClick={closeEditor}>
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* File Path */}
-            <div style={{ padding: "8px 24px", borderBottom: "1px solid var(--border-subtle)", flexShrink: 0 }}>
-              <div className="code-block" style={{ fontSize: 11, margin: 0 }}>{editingFile.path}</div>
-            </div>
-
-            {/* Editor Body */}
-            <div style={{ flex: 1, overflow: "auto", padding: "0 24px 24px" }}>
-              {loadingContent ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 40, justifyContent: "center" }}>
-                  <div className="spinner" style={{ width: 18, height: 18 }} />
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading...</span>
-                </div>
-              ) : (
-                <div style={{ paddingTop: 16 }}>
-                  {isMarkdownFile(editingFile.path) ? (
-                    <Suspense fallback={
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 40, justifyContent: "center" }}>
-                        <div className="spinner" style={{ width: 18, height: 18 }} />
-                      </div>
-                    }>
-                      <MarkdownEditor
-                        value={content}
-                        onChange={setContent}
-                        minHeight={400}
-                      />
-                    </Suspense>
-                  ) : (
-                    <CodeEditor
-                      value={content}
-                      onChange={setContent}
-                      language="json"
-                      minHeight={400}
-                      maxHeight={600}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirmation Dialog */}
       {confirmDelete && (
         <div
           style={{
             position: "fixed", inset: 0, background: "var(--bg-overlay)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100,
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
           }}
           onClick={() => setConfirmDelete(null)}
         >

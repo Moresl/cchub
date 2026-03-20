@@ -863,6 +863,14 @@ textarea.input {
   --basePageBg: var(--bg-input);
   --baseBgSubtle: var(--bg-elevated);
   font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+/* Force all text inside MDXEditor to inherit proper colors */
+.mdx-editor-wrapper .dark-theme,
+.mdx-editor-wrapper .dark-theme * {
+  color: inherit;
 }
 
 .mdx-editor-wrapper .dark-theme [role="toolbar"] {
@@ -889,9 +897,10 @@ textarea.input {
   color: var(--text-primary);
 }
 
-.mdx-editor-wrapper .dark-theme [role="toolbar"] select {
-  color: var(--text-secondary);
-  background: var(--bg-input);
+.mdx-editor-wrapper .dark-theme [role="toolbar"] select,
+.mdx-editor-wrapper .dark-theme select {
+  color: var(--text-secondary) !important;
+  background: var(--bg-input) !important;
   border: 1px solid var(--border-default);
   border-radius: 4px;
   font-size: 12px;
@@ -920,6 +929,14 @@ textarea.input {
 .mdx-editor-wrapper .mdx-editor-content h2 { font-size: 1.3em; }
 .mdx-editor-wrapper .mdx-editor-content h3 { font-size: 1.1em; }
 
+.mdx-editor-wrapper .mdx-editor-content p,
+.mdx-editor-wrapper .mdx-editor-content span,
+.mdx-editor-wrapper .mdx-editor-content li,
+.mdx-editor-wrapper .mdx-editor-content td,
+.mdx-editor-wrapper .mdx-editor-content th {
+  color: var(--text-primary);
+}
+
 .mdx-editor-wrapper .mdx-editor-content a {
   color: var(--accent);
   text-decoration: underline;
@@ -932,24 +949,31 @@ textarea.input {
   margin: 12px 0;
 }
 
-.mdx-editor-wrapper .mdx-editor-content code {
-  background: var(--bg-elevated);
+/* Inline code — the key fix for black boxes */
+.mdx-editor-wrapper .mdx-editor-content code,
+.mdx-editor-wrapper .dark-theme code {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #e8ab6a !important;
   border-radius: 3px;
-  padding: 2px 5px;
+  padding: 2px 6px;
   font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 0.9em;
+  font-size: 0.85em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mdx-editor-wrapper .mdx-editor-content pre {
-  background: var(--bg-elevated);
+  background: var(--bg-elevated) !important;
   border: 1px solid var(--border-default);
   border-radius: 6px;
   padding: 12px 16px;
   overflow-x: auto;
 }
 
-.mdx-editor-wrapper .mdx-editor-content pre code {
-  background: transparent;
+.mdx-editor-wrapper .mdx-editor-content pre code,
+.mdx-editor-wrapper .dark-theme pre code {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border: none;
   padding: 0;
 }
 
@@ -969,6 +993,7 @@ textarea.input {
 .mdx-editor-wrapper .mdx-editor-content th {
   background: var(--bg-elevated);
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .mdx-editor-wrapper .mdx-editor-content ul,
@@ -992,24 +1017,48 @@ textarea.input {
   z-index: 100;
 }
 
-.mdx-editor-wrapper .dark-theme [role="dialog"] {
-  background: var(--bg-card);
+.mdx-editor-wrapper .dark-theme [role="dialog"],
+.mdx-editor-wrapper .dark-theme [data-radix-popper-content-wrapper] > div {
+  background: var(--bg-card) !important;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   color: var(--text-primary);
 }
 
-.mdx-editor-wrapper .dark-theme [role="dialog"] input {
-  background: var(--bg-input);
+.mdx-editor-wrapper .dark-theme [role="dialog"] input,
+.mdx-editor-wrapper .dark-theme input {
+  background: var(--bg-input) !important;
   border: 1px solid var(--border-default);
   border-radius: 4px;
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   padding: 6px 10px;
   font-size: 13px;
+}
+
+/* CodeMirror inside MDXEditor code blocks */
+.mdx-editor-wrapper .cm-editor {
+  background: var(--bg-elevated) !important;
+}
+
+.mdx-editor-wrapper .cm-editor .cm-content {
+  color: var(--text-primary) !important;
+}
+
+.mdx-editor-wrapper .cm-editor .cm-gutters {
+  background: var(--bg-elevated) !important;
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-muted);
 }
 
 /* Light theme adjustments */
 [data-theme="light"] .mdx-editor-wrapper .dark-theme {
   --accentBase: #0a0a0a;
   --basePageBg: var(--bg-input);
+}
+
+[data-theme="light"] .mdx-editor-wrapper .mdx-editor-content code,
+[data-theme="light"] .mdx-editor-wrapper .dark-theme code {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #c7254e !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
