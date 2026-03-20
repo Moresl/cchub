@@ -22,6 +22,7 @@ import {
   type MDXEditorMethods,
 } from "@mdxeditor/editor";
 import "@mdxeditor/editor/style.css";
+import { getTheme } from "../lib/theme";
 
 interface MarkdownEditorProps {
   value: string;
@@ -31,6 +32,7 @@ interface MarkdownEditorProps {
 
 export default function MarkdownEditor({ value, onChange, minHeight = 400 }: MarkdownEditorProps) {
   const editorRef = useRef<MDXEditorMethods>(null);
+  const isDark = getTheme() === "dark";
 
   const handleChange = useCallback(
     (md: string) => {
@@ -53,7 +55,7 @@ export default function MarkdownEditor({ value, onChange, minHeight = 400 }: Mar
         ref={editorRef}
         markdown={value}
         onChange={handleChange}
-        className="dark-theme"
+        className={isDark ? "dark-theme" : ""}
         contentEditableClassName="mdx-editor-content"
         plugins={[
           headingsPlugin(),

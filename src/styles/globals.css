@@ -854,59 +854,66 @@ textarea.input {
   z-index: 10;
 }
 
-/* ═══ MDXEditor Dark Theme Overrides ═══ */
+/* ═══ MDXEditor Theme Overrides ═══ */
 
+/* Base wrapper — applies to both light and dark */
+.mdx-editor-wrapper [class*="mdxeditor"] {
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+/* Dark mode: override MDXEditor CSS variables */
 .mdx-editor-wrapper .dark-theme {
   --accentBase: var(--accent);
   --accentBgSubtle: var(--accent-subtle);
   --accentTextContrast: var(--accent-foreground);
   --basePageBg: var(--bg-input);
   --baseBgSubtle: var(--bg-elevated);
-  font-family: inherit;
-  color: var(--text-primary);
-  background: var(--bg-input);
+  --baseBg: var(--bg-elevated);
+  --baseBgHover: var(--bg-card-hover);
+  --baseBgActive: var(--bg-card-hover);
+  --baseBase: var(--border-default);
+  --baseText: var(--text-secondary);
+  --baseTextContrast: var(--text-primary);
 }
 
-/* Force all text inside MDXEditor to inherit proper colors */
-.mdx-editor-wrapper .dark-theme,
-.mdx-editor-wrapper .dark-theme * {
-  color: inherit;
-}
-
-.mdx-editor-wrapper .dark-theme [role="toolbar"] {
-  background: var(--bg-elevated);
+/* Toolbar */
+.mdx-editor-wrapper [role="toolbar"] {
+  background: var(--bg-elevated) !important;
   border-bottom: 1px solid var(--border-default);
   border-radius: 6px 6px 0 0;
   padding: 4px 8px;
   gap: 2px;
 }
 
-.mdx-editor-wrapper .dark-theme [role="toolbar"] button {
-  color: var(--text-secondary);
+.mdx-editor-wrapper [role="toolbar"] button {
+  color: var(--text-secondary) !important;
   border-radius: 4px;
   padding: 4px 6px;
 }
 
-.mdx-editor-wrapper .dark-theme [role="toolbar"] button:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
+.mdx-editor-wrapper [role="toolbar"] button:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
 }
 
-.mdx-editor-wrapper .dark-theme [role="toolbar"] button[data-state="on"] {
-  background: var(--accent-subtle);
-  color: var(--text-primary);
+.mdx-editor-wrapper [role="toolbar"] button[data-state="on"] {
+  background: var(--accent-subtle) !important;
+  color: var(--text-primary) !important;
 }
 
-.mdx-editor-wrapper .dark-theme [role="toolbar"] select,
-.mdx-editor-wrapper .dark-theme select {
+.mdx-editor-wrapper [role="toolbar"] select,
+.mdx-editor-wrapper select {
   color: var(--text-secondary) !important;
   background: var(--bg-input) !important;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-default) !important;
   border-radius: 4px;
   font-size: 12px;
   padding: 2px 6px;
 }
 
+/* Content area */
 .mdx-editor-wrapper .mdx-editor-content {
   background: var(--bg-input);
   color: var(--text-primary);
@@ -949,16 +956,18 @@ textarea.input {
   margin: 12px 0;
 }
 
-/* Inline code — the key fix for black boxes */
-.mdx-editor-wrapper .mdx-editor-content code,
-.mdx-editor-wrapper .dark-theme code {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #e8ab6a !important;
-  border-radius: 3px;
+/* ── Inline code — critical fix ── */
+/* MDXEditor uses CSS Modules class like ._code_1tncs_52 with --baseBg */
+/* Override both the class pattern AND native code elements */
+.mdx-editor-wrapper [class*="_code_"],
+.mdx-editor-wrapper .mdx-editor-content code {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-radius: 4px;
   padding: 2px 6px;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.85em;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-default);
 }
 
 .mdx-editor-wrapper .mdx-editor-content pre {
@@ -970,13 +979,14 @@ textarea.input {
 }
 
 .mdx-editor-wrapper .mdx-editor-content pre code,
-.mdx-editor-wrapper .dark-theme pre code {
+.mdx-editor-wrapper .mdx-editor-content pre [class*="_code_"] {
   background: transparent !important;
   color: var(--text-primary) !important;
   border: none;
   padding: 0;
 }
 
+/* Table */
 .mdx-editor-wrapper .mdx-editor-content table {
   border-collapse: collapse;
   width: 100%;
@@ -996,6 +1006,7 @@ textarea.input {
   color: var(--text-primary);
 }
 
+/* Lists */
 .mdx-editor-wrapper .mdx-editor-content ul,
 .mdx-editor-wrapper .mdx-editor-content ol {
   padding-left: 24px;
@@ -1012,21 +1023,21 @@ textarea.input {
   margin: 16px 0;
 }
 
-/* MDXEditor popup/dialog overrides */
-.mdx-editor-wrapper .dark-theme [data-radix-popper-content-wrapper] {
+/* Popup/dialog overrides */
+.mdx-editor-wrapper [data-radix-popper-content-wrapper] {
   z-index: 100;
 }
 
-.mdx-editor-wrapper .dark-theme [role="dialog"],
-.mdx-editor-wrapper .dark-theme [data-radix-popper-content-wrapper] > div {
+.mdx-editor-wrapper [role="dialog"],
+.mdx-editor-wrapper [data-radix-popper-content-wrapper] > div {
   background: var(--bg-card) !important;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   color: var(--text-primary);
 }
 
-.mdx-editor-wrapper .dark-theme [role="dialog"] input,
-.mdx-editor-wrapper .dark-theme input {
+.mdx-editor-wrapper [role="dialog"] input,
+.mdx-editor-wrapper input {
   background: var(--bg-input) !important;
   border: 1px solid var(--border-default);
   border-radius: 4px;
@@ -1048,17 +1059,4 @@ textarea.input {
   background: var(--bg-elevated) !important;
   border-right: 1px solid var(--border-subtle);
   color: var(--text-muted);
-}
-
-/* Light theme adjustments */
-[data-theme="light"] .mdx-editor-wrapper .dark-theme {
-  --accentBase: #0a0a0a;
-  --basePageBg: var(--bg-input);
-}
-
-[data-theme="light"] .mdx-editor-wrapper .mdx-editor-content code,
-[data-theme="light"] .mdx-editor-wrapper .dark-theme code {
-  background: rgba(0, 0, 0, 0.06) !important;
-  color: #c7254e !important;
-  border: 1px solid rgba(0, 0, 0, 0.08);
 }
