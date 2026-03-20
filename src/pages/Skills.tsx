@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   RefreshCw, Zap, Package, FileText, ExternalLink, Search,
   X, FolderOpen, Monitor, Terminal, Check,
   Folder, File, ChevronDown,
-  Edit3, Trash2, Save, Sparkles, Globe,
+  Edit3, Trash2, Save, Sparkles, Globe, ArrowLeft, RotateCcw,
 } from "lucide-react";
 import { t, tReplace, getLocale } from "../lib/i18n";
 import type { DetectedTool, FolderNode, SkillCategory } from "../types/skills";
-import CodeEditor from "../components/CodeEditor";
 import { showToast } from "../components/Toast";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const MarkdownEditor = lazy(() => import("../components/MarkdownEditor"));
 
 interface Skill {
   id: string; name: string; description: string | null;
@@ -229,54 +230,63 @@ export default function Skills() {
     return <div className="loading-center"><div className="spinner" /><span style={{ fontSize: 13, color: "var(--text-muted)" }}>{i.skills.loading}</span></div>;
   }
 
+  const hasEditChanges = editContent !== (skillContent || "");
+
   // --- 技能编辑视图 ---
   if (editingSkill && selectedSkill) {
     return (
       <div className="animate-in" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
         <div className="page-header">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="btn btn-ghost btn-icon-sm" onClick={() => setEditingSkill(false)} title={locale === "zh" ? "返回" : "Back"}>
-              <X size={18} />
+            <button className="btn btn-ghost btn-icon-sm" onClick={() => setEditingSkill(false)}>
+              <ArrowLeft size={16} />
             </button>
-            <div>
-              <h2 className="page-title">{selectedSkill.name}</h2>
-              <p className="page-subtitle">{locale === "zh" ? "编辑技能内容" : "Edit skill content"}</p>
-            </div>
+            <Zap size={18} style={{ color: "var(--warning)" }} />
+            <h2 className="page-title" style={{ margin: 0 }}>{selectedSkill.name}</h2>
+            {selectedSkill.file_path?.endsWith(".disabled") && (
+              <span className="badge badge-muted" style={{ fontSize: 10 }}>{locale === "zh" ? "已禁用" : "Disabled"}</span>
+            )}
+            {hasEditChanges && (
+              <span className="badge badge-warning">{locale === "zh" ? "未保存" : "Unsaved"}</span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {hasEditChanges && (
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditContent(skillContent || "")}>
+                <RotateCcw size={14} />{locale === "zh" ? "撤销" : "Revert"}
+              </button>
+            )}
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleSaveSkill}
+              disabled={!hasEditChanges}
+            >
+              <Save size={14} />{i.common.save}
+            </button>
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", gap: 16, minHeight: 0 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Markdown
-            </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <CodeEditor
-                value={editContent}
-                onChange={setEditContent}
-                language="markdown"
-                minHeight={200}
-              />
-            </div>
+        {/* File Path */}
+        {selectedSkill.file_path && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="code-block" style={{ fontSize: 11 }}>{selectedSkill.file_path}</div>
           </div>
-          <div style={{ width: 1, background: "var(--border-default)" }} />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {locale === "zh" ? "预览" : "Preview"}
-            </div>
-            <div className="markdown-preview" style={{ flex: 1, overflowY: "auto", fontSize: 13, lineHeight: 1.8, minHeight: 0 }}>
-              <Markdown remarkPlugins={[remarkGfm]}>{editContent}</Markdown>
-            </div>
-          </div>
-        </div>
+        )}
 
-        <div className="sticky-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditingSkill(false)}>
-            {locale === "zh" ? "取消" : "Cancel"}
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={handleSaveSkill} style={{ gap: 6 }}>
-            <Save size={14} />{locale === "zh" ? "保存" : "Save"}
-          </button>
+        {/* Editor */}
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <Suspense fallback={
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 40, justifyContent: "center" }}>
+              <div className="spinner" style={{ width: 18, height: 18 }} />
+            </div>
+          }>
+            <MarkdownEditor
+              value={editContent}
+              onChange={setEditContent}
+              minHeight={500}
+            />
+          </Suspense>
         </div>
       </div>
     );
@@ -468,17 +478,41 @@ export default function Skills() {
                       )}
                       {skill.file_path && (
                         <>
-                          <div className="btn btn-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); handleToggleSkill(skill); }}
-                            title={skill.file_path.endsWith(".disabled") ? (locale === "zh" ? "启用" : "Enable") : (locale === "zh" ? "禁用" : "Disable")} style={{ cursor: "pointer" }}>
-                            <div className={`toggle toggle-sm ${skill.file_path.endsWith(".disabled") ? "off" : "on"}`}><div className="toggle-knob" /></div>
-                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleSkill(skill); }}
+                            title={skill.file_path.endsWith(".disabled") ? (locale === "zh" ? "启用" : "Enable") : (locale === "zh" ? "禁用" : "Disable")}
+                            style={{
+                              position: "relative",
+                              width: 40,
+                              height: 22,
+                              borderRadius: 11,
+                              border: "none",
+                              cursor: "pointer",
+                              background: skill.file_path.endsWith(".disabled") ? "var(--border-strong)" : "var(--success)",
+                              transition: "background 0.2s",
+                              padding: 0,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span style={{
+                              position: "absolute",
+                              top: 2,
+                              left: skill.file_path.endsWith(".disabled") ? 2 : 20,
+                              width: 18,
+                              height: 18,
+                              borderRadius: "50%",
+                              background: "#fff",
+                              transition: "left 0.2s",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                            }} />
+                          </button>
                           <button className="btn btn-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); openEditSkill(skill); }}
                             title={locale === "zh" ? "编辑" : "Edit"}>
                             <Edit3 size={13} />
                           </button>
-                          <button className="btn btn-danger-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); handleDeleteSkill(skill); }}
+                          <button className="btn btn-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); handleDeleteSkill(skill); }}
                             title={locale === "zh" ? "删除" : "Delete"}>
-                            <Trash2 size={14} />
+                            <Trash2 size={14} style={{ color: "var(--danger)" }} />
                           </button>
                         </>
                       )}
@@ -573,10 +607,34 @@ export default function Skills() {
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   {selectedSkill.file_path && !editingSkill && (
                     <>
-                      <div className="btn btn-ghost btn-icon-sm" onClick={() => handleToggleSkill(selectedSkill)}
-                        title={selectedSkill.file_path.endsWith(".disabled") ? (locale === "zh" ? "启用" : "Enable") : (locale === "zh" ? "禁用" : "Disable")} style={{ cursor: "pointer" }}>
-                        <div className={`toggle toggle-sm ${selectedSkill.file_path.endsWith(".disabled") ? "off" : "on"}`}><div className="toggle-knob" /></div>
-                      </div>
+                      <button
+                        onClick={() => handleToggleSkill(selectedSkill)}
+                        title={selectedSkill.file_path.endsWith(".disabled") ? (locale === "zh" ? "启用" : "Enable") : (locale === "zh" ? "禁用" : "Disable")}
+                        style={{
+                          position: "relative",
+                          width: 40,
+                          height: 22,
+                          borderRadius: 11,
+                          border: "none",
+                          cursor: "pointer",
+                          background: selectedSkill.file_path.endsWith(".disabled") ? "var(--border-strong)" : "var(--success)",
+                          transition: "background 0.2s",
+                          padding: 0,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span style={{
+                          position: "absolute",
+                          top: 2,
+                          left: selectedSkill.file_path.endsWith(".disabled") ? 2 : 20,
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.2s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                        }} />
+                      </button>
                       <button className="btn btn-ghost btn-icon-sm" onClick={() => handleDeleteSkill(selectedSkill)}
                         title={locale === "zh" ? "删除" : "Delete"}>
                         <Trash2 size={15} style={{ color: "var(--danger)" }} />
